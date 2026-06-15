@@ -45,6 +45,11 @@ def init_db():
         chat_id INTEGER, keyword TEXT, response TEXT,
         PRIMARY KEY (chat_id, keyword))""")
 
+    c.execute("""CREATE TABLE IF NOT EXISTS known_chats (
+        chat_id INTEGER PRIMARY KEY,
+        title TEXT,
+        chat_type TEXT)""")
+
     conn.commit()
 
     for col, definition in [

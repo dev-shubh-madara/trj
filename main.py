@@ -20,6 +20,7 @@ import handlers.notes as notes_handler
 import handlers.rules as rules_handler
 import handlers.filters_handler as filters_handler
 import handlers.antiflood as antiflood_handler
+import handlers.ping as ping_handler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,7 +55,8 @@ def register_all_handlers(app: Client):
     rules_handler.register(app)
     filters_handler.register(app)
     antiflood_handler.register(app)
-    log.info("All handlers registered.")
+    ping_handler.register(app)
+    log.info("All 16 handlers registered.")
 
 
 async def main():
@@ -72,16 +74,17 @@ async def main():
                 OWNER_ID,
                 f"🤖 **GuardBot v4 Online!**\n\n"
                 f"@{me.username} | `{me.id}`\n\n"
-                f"✅ Group protection fixed (owner exempt)\n"
-                f"✅ Welcome system fixed\n"
-                f"✅ Regional indicator font active\n"
-                f"✅ Start animation with sticker\n"
-                f"✅ Notes, Rules, Filters, Anti-Flood\n"
+                f"✅ Colorful command button menu\n"
+                f"✅ Broadcast = owner only\n"
+                f"✅ Welcome fixed (groups + supergroups)\n"
+                f"✅ Profile photo as spoiler in welcome\n"
+                f"✅ /ping command added\n"
+                f"✅ Notes · Rules · Filters · Anti-Flood\n"
                 f"✅ Powered by Madara 🔥"
             )
         except Exception:
             pass
-        log.info("GuardBot is idle and protecting.")
+        log.info("GuardBot is protecting.")
         await asyncio.Event().wait()
 
 
