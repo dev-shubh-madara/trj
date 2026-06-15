@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from pyrogram import Client
-from pyrogram.errors import FloodWait
 
 from config import API_ID, API_HASH, BOT_TOKEN, OWNER_ID
 from database import init_db
@@ -17,6 +16,10 @@ import handlers.admin as admin_handler
 import handlers.welcome as welcome_handler
 import handlers.broadcast as broadcast_handler
 import handlers.clgroup as clgroup_handler
+import handlers.notes as notes_handler
+import handlers.rules as rules_handler
+import handlers.filters_handler as filters_handler
+import handlers.antiflood as antiflood_handler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,41 +50,38 @@ def register_all_handlers(app: Client):
     welcome_handler.register(app)
     broadcast_handler.register(app)
     clgroup_handler.register(app)
-    log.info("All handlers registered successfully.")
+    notes_handler.register(app)
+    rules_handler.register(app)
+    filters_handler.register(app)
+    antiflood_handler.register(app)
+    log.info("All handlers registered.")
 
 
 async def main():
     log.info("Initializing database...")
     init_db()
-
-    log.info("Starting GuardBot...")
+    log.info("Starting GuardBot v4...")
     app = create_app()
     register_all_handlers(app)
 
     async with app:
         me = await app.get_me()
-        log.info(f"Bot started: @{me.username} (ID: {me.id})")
-        log.info(f"Owner ID: {OWNER_ID}")
-        log.info("GuardBot is now running and protecting groups!")
-
+        log.info(f"Bot: @{me.username} ({me.id}) | Owner: {OWNER_ID}")
         try:
             await app.send_message(
                 OWNER_ID,
-                f"🤖 **GuardBot is Online!**\n\n"
-                f"✅ Bot: @{me.username}\n"
-                f"🆔 Bot ID: `{me.id}`\n"
-                f"👑 Owner: `{OWNER_ID}`\n\n"
-                f"🆕 **New Features Active:**\n"
-                f"• 👋 Welcome messages with profile photo\n"
-                f"• 📢 Broadcast system (`/broadcast`)\n"
-                f"• 🗑️ Group clear command (`/clgroup`)\n"
-                f"• 🤖 Bot illegal message filter\n\n"
-                f"Send /start to see the full command menu."
+                f"🤖 **GuardBot v4 Online!**\n\n"
+                f"@{me.username} | `{me.id}`\n\n"
+                f"✅ Group protection fixed (owner exempt)\n"
+                f"✅ Welcome system fixed\n"
+                f"✅ Regional indicator font active\n"
+                f"✅ Start animation with sticker\n"
+                f"✅ Notes, Rules, Filters, Anti-Flood\n"
+                f"✅ Powered by Madara 🔥"
             )
         except Exception:
             pass
-
-        log.info("Bot is idle. Press Ctrl+C to stop.")
+        log.info("GuardBot is idle and protecting.")
         await asyncio.Event().wait()
 
 
@@ -89,6 +89,6 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        log.info("GuardBot stopped by user.")
+        log.info("Stopped.")
     except Exception as e:
-        log.exception(f"Fatal error: {e}")
+        log.exception(f"Fatal: {e}")

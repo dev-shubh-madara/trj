@@ -23,123 +23,130 @@ def init_db():
         user_id INTEGER, chat_id INTEGER, PRIMARY KEY (user_id, chat_id))""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS group_settings (
-        chat_id INTEGER PRIMARY KEY,
+        chat_id          INTEGER PRIMARY KEY,
         media_delete_time INTEGER DEFAULT 30,
-        group_title TEXT,
-        group_photo_id TEXT,
-        welcome_text TEXT,
-        welcome_enabled INTEGER DEFAULT 1)""")
+        group_title      TEXT,
+        group_photo_id   TEXT,
+        welcome_text     TEXT,
+        welcome_enabled  INTEGER DEFAULT 1,
+        rules_text       TEXT,
+        flood_limit      INTEGER DEFAULT 0)""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS warns (
-        user_id INTEGER, chat_id INTEGER, count INTEGER DEFAULT 0,
-        reasons TEXT DEFAULT '',
+        user_id INTEGER, chat_id INTEGER,
+        count INTEGER DEFAULT 0, reasons TEXT DEFAULT '',
         PRIMARY KEY (user_id, chat_id))""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS notes (
+        chat_id INTEGER, name TEXT, content TEXT, creator_id INTEGER,
+        PRIMARY KEY (chat_id, name))""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS chat_filters (
+        chat_id INTEGER, keyword TEXT, response TEXT,
+        PRIMARY KEY (chat_id, keyword))""")
 
     conn.commit()
 
-    try:
-        conn.execute("ALTER TABLE group_settings ADD COLUMN welcome_text TEXT")
-        conn.commit()
-    except Exception:
-        pass
-    try:
-        conn.execute("ALTER TABLE group_settings ADD COLUMN welcome_enabled INTEGER DEFAULT 1")
-        conn.commit()
-    except Exception:
-        pass
+    for col, definition in [
+        ("welcome_text",    "TEXT"),
+        ("welcome_enabled", "INTEGER DEFAULT 1"),
+        ("rules_text",      "TEXT"),
+        ("flood_limit",     "INTEGER DEFAULT 0"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE group_settings ADD COLUMN {col} {definition}")
+            conn.commit()
+        except Exception:
+            pass
 
     conn.close()
 
 
-def add_authorized_user(user_id: int):
+def add_authorized_user(user_id):
     conn = get_conn()
     conn.execute("INSERT OR IGNORE INTO authorized_users (user_id) VALUES (?)", (user_id,))
     conn.commit()
 
 
-def remove_authorized_user(user_id: int):
+def remove_authorized_user(user_id):
     conn = get_conn()
-    conn.execute("DELETE FROM authorized_users WHERE user_id = ?", (user_id,))
+    conn.execute("DELETE FROM authorized_users WHERE user_id=?", (user_id,))
     conn.commit()
 
 
-def is_authorized(user_id: int) -> bool:
-    conn = get_conn()
-    return conn.execute(
-        "SELECT 1 FROM authorized_users WHERE user_id = ?", (user_id,)
+def is_authorized(user_id) -> bool:
+    return get_conn().execute(
+        "SELECT 1 FROM authorized_users WHERE user_id=?", (user_id,)
     ).fetchone() is not None
 
 
-def add_certified_user(user_id: int, chat_id: int):
+def add_certified_user(user_id, chat_id):
     conn = get_conn()
-    conn.execute("INSERT OR IGNORE INTO certified_users (user_id, chat_id) VALUES (?, ?)", (user_id, chat_id))
+    conn.execute("INSERT OR IGNORE INTO certified_users (user_id, chat_id) VALUES (?,?)", (user_id, chat_id))
     conn.commit()
 
 
-def remove_certified_user(user_id: int, chat_id: int):
+def remove_certified_user(user_id, chat_id):
     conn = get_conn()
-    conn.execute("DELETE FROM certified_users WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
+    conn.execute("DELETE FROM certified_users WHERE user_id=? AND chat_id=?", (user_id, chat_id))
     conn.commit()
 
 
-def is_certified(user_id: int, chat_id: int) -> bool:
-    conn = get_conn()
-    return conn.execute(
-        "SELECT 1 FROM certified_users WHERE user_id = ? AND chat_id = ?", (user_id, chat_id)
+def is_certified(user_id, chat_id) -> bool:
+    return get_conn().execute(
+        "SELECT 1 FROM certified_users WHERE user_id=? AND chat_id=?", (user_id, chat_id)
     ).fetchone() is not None
 
 
-def set_media_delete_time(chat_id: int, seconds: int):
+def set_media_delete_time(chat_id, seconds):
     conn = get_conn()
     conn.execute(
         "INSERT INTO group_settings (chat_id, media_delete_time) VALUES (?,?) "
         "ON CONFLICT(chat_id) DO UPDATE SET media_delete_time=excluded.media_delete_time",
-        (chat_id, seconds)
-    )
+        (chat_id, seconds))
     conn.commit()
 
 
-def get_media_delete_time(chat_id: int) -> int:
-    conn = get_conn()
-    row = conn.execute(
+def get_media_delete_time(chat_id) -> int:
+    row = get_conn().execute(
         "SELECT media_delete_time FROM group_settings WHERE chat_id=?", (chat_id,)
     ).fetchone()
     return row["media_delete_time"] if row else 30
 
 
-def save_group_title(chat_id: int, title: str):
+def save_group_title(chat_id, title):
     conn = get_conn()
     conn.execute(
         "INSERT INTO group_settings (chat_id, group_title) VALUES (?,?) "
         "ON CONFLICT(chat_id) DO UPDATE SET group_title=excluded.group_title",
-        (chat_id, title)
-    )
+        (chat_id, title))
     conn.commit()
 
 
-def get_group_title(chat_id: int):
-    conn = get_conn()
-    row = conn.execute("SELECT group_title FROM group_settings WHERE chat_id=?", (chat_id,)).fetchone()
+def get_group_title(chat_id):
+    row = get_conn().execute(
+        "SELECT group_title FROM group_settings WHERE chat_id=?", (chat_id,)
+    ).fetchone()
     return row["group_title"] if row else None
 
 
-def save_group_photo_id(chat_id: int, photo_id: str):
+def save_group_photo_id(chat_id, photo_id):
     conn = get_conn()
     conn.execute(
         "INSERT INTO group_settings (chat_id, group_photo_id) VALUES (?,?) "
         "ON CONFLICT(chat_id) DO UPDATE SET group_photo_id=excluded.group_photo_id",
-        (chat_id, photo_id)
-    )
+        (chat_id, photo_id))
     conn.commit()
 
 
-def get_group_photo_id(chat_id: int):
-    conn = get_conn()
-    row = conn.execute("SELECT group_photo_id FROM group_settings WHERE chat_id=?", (chat_id,)).fetchone()
+def get_group_photo_id(chat_id):
+    row = get_conn().execute(
+        "SELECT group_photo_id FROM group_settings WHERE chat_id=?", (chat_id,)
+    ).fetchone()
     return row["group_photo_id"] if row else None
 
 
-def add_warn(user_id: int, chat_id: int, reason: str = "") -> int:
+def add_warn(user_id, chat_id, reason="") -> int:
     conn = get_conn()
     row = conn.execute(
         "SELECT count, reasons FROM warns WHERE user_id=? AND chat_id=?", (user_id, chat_id)
@@ -147,32 +154,26 @@ def add_warn(user_id: int, chat_id: int, reason: str = "") -> int:
     if row:
         new_count = row["count"] + 1
         reasons = row["reasons"] + (f"|{reason}" if reason else "|")
-        conn.execute(
-            "UPDATE warns SET count=?, reasons=? WHERE user_id=? AND chat_id=?",
-            (new_count, reasons, user_id, chat_id)
-        )
+        conn.execute("UPDATE warns SET count=?, reasons=? WHERE user_id=? AND chat_id=?",
+                     (new_count, reasons, user_id, chat_id))
     else:
         new_count = 1
-        conn.execute(
-            "INSERT INTO warns (user_id, chat_id, count, reasons) VALUES (?,?,1,?)",
-            (user_id, chat_id, reason)
-        )
+        conn.execute("INSERT INTO warns (user_id, chat_id, count, reasons) VALUES (?,?,1,?)",
+                     (user_id, chat_id, reason))
     conn.commit()
     return new_count
 
 
-def get_warns(user_id: int, chat_id: int):
-    conn = get_conn()
-    row = conn.execute(
+def get_warns(user_id, chat_id):
+    row = get_conn().execute(
         "SELECT count, reasons FROM warns WHERE user_id=? AND chat_id=?", (user_id, chat_id)
     ).fetchone()
     if not row:
         return 0, []
-    reasons = [r for r in row["reasons"].split("|") if r]
-    return row["count"], reasons
+    return row["count"], [r for r in row["reasons"].split("|") if r]
 
 
-def remove_warn(user_id: int, chat_id: int) -> int:
+def remove_warn(user_id, chat_id) -> int:
     conn = get_conn()
     row = conn.execute(
         "SELECT count, reasons FROM warns WHERE user_id=? AND chat_id=?", (user_id, chat_id)
@@ -180,18 +181,14 @@ def remove_warn(user_id: int, chat_id: int) -> int:
     if not row or row["count"] == 0:
         return 0
     new_count = max(0, row["count"] - 1)
-    reasons = row["reasons"].split("|")
-    if reasons:
-        reasons = reasons[:-1]
-    conn.execute(
-        "UPDATE warns SET count=?, reasons=? WHERE user_id=? AND chat_id=?",
-        (new_count, "|".join(reasons), user_id, chat_id)
-    )
+    reasons = row["reasons"].split("|")[:-1]
+    conn.execute("UPDATE warns SET count=?, reasons=? WHERE user_id=? AND chat_id=?",
+                 (new_count, "|".join(reasons), user_id, chat_id))
     conn.commit()
     return new_count
 
 
-def reset_warns(user_id: int, chat_id: int):
+def reset_warns(user_id, chat_id):
     conn = get_conn()
     conn.execute("DELETE FROM warns WHERE user_id=? AND chat_id=?", (user_id, chat_id))
     conn.commit()

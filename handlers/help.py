@@ -1,3 +1,5 @@
+import asyncio
+import random
 from pyrogram import Client, filters
 from pyrogram.types import Message, CallbackQuery
 
@@ -6,90 +8,162 @@ from database import is_authorized
 from utils.font import frak
 from utils.buttons import markup, primary, success, danger, default
 
+STICKER_SET = "guri20_by_fStikBot"
+_sticker_cache = []
+
+MADARA = f"\n\n— **{frak('Powered by Madara')}** 🔥"
 
 HELP_TEXT = f"""
-🤖 **{frak('GuardBot — Command Center')}**
+🤖 **{frak('GuardBot Command Center')}**{MADARA}
 
 ━━━━━━━━━━━━━━━━━━━━
 
-🔐 **{frak('Owner Commands')}** _(Private)_
-• `/auth <id>` — {frak('Authorize a user')}
-• `/unauth <id>` — {frak('Remove authorization')}
-• `/broadcast` — {frak('Broadcast to all groups (reply)')}
+🔐 **{frak('Owner')}** _(Private)_
+`/auth <id>` · `/unauth <id>` · `/broadcast`
 
 ━━━━━━━━━━━━━━━━━━━━
 
-⭐ **{frak('Certification')}** _(Group)_
-• `/giveaura` — {frak('Certify a member (reply)')}
-• `/removeaura` — {frak('Revoke certification (reply)')}
-• `/certified` — {frak('List certified members')}
-• `/snapshotgroup` — {frak('Save group name & photo')}
+⭐ **{frak('Certification')}**
+`/giveaura` · `/removeaura` · `/certified`
+`/snapshotgroup` · `/approve` · `/unapprove`
 
 ━━━━━━━━━━━━━━━━━━━━
 
-👋 **{frak('Welcome System')}** _(Group)_
-• `/setwelcome <text>` — {frak('Set custom welcome message')}
-• `/setwelcome off` — {frak('Disable welcome messages')}
-• `/welcome` — {frak('Check welcome settings')}
-• `{{name}}` `{{first}}` `{{chat}}` `{{id}}` — {frak('Variables')}
+👋 **{frak('Welcome')}**
+`/setwelcome <text>` · `/setwelcome off` · `/welcome`
+_{frak('Variables:')}_ `{{name}}` `{{first}}` `{{chat}}` `{{id}}`
 
 ━━━━━━━━━━━━━━━━━━━━
 
-🔨 **{frak('Ban & Kick')}** _(Group / Admin)_
-• `/ban [@user] [reason]` — {frak('Permanent ban')}
-• `/unban [@user]` — {frak('Unban user')}
-• `/tban [@user] [time]` — {frak('Temp ban (1h, 2d)')}
-• `/kick [@user]` — {frak('Kick (can rejoin)')}
+📝 **{frak('Notes')}** _(like MissRose)_
+`/save name text` · `/get name` · `/notes`
+`/clear name` · `/clearall` · `#notename`
 
 ━━━━━━━━━━━━━━━━━━━━
 
-🔇 **{frak('Mute')}** _(Group / Admin)_
-• `/mute [@user]` — {frak('Mute user')}
-• `/unmute [@user]` — {frak('Unmute user')}
-• `/tmute [@user] [time]` — {frak('Temp mute')}
+📜 **{frak('Rules')}**
+`/setrules <text>` · `/rules` · `/resetrules`
 
 ━━━━━━━━━━━━━━━━━━━━
 
-⚠️ **{frak('Warnings')}** _(Group / Admin)_
-• `/warn [@user] [reason]` — {frak('Warn user (3 = ban)')}
-• `/unwarn [@user]` — {frak('Remove last warn')}
-• `/warns [@user]` — {frak('Check warns')}
-• `/resetwarns [@user]` — {frak('Reset all warns')}
+🔍 **{frak('Filters')}** _(Auto-replies)_
+`/filter keyword reply` · `/filters`
+`/stop keyword` · `/stopall`
 
 ━━━━━━━━━━━━━━━━━━━━
 
-📌 **{frak('Messages')}** _(Group / Admin)_
-• `/pin` — {frak('Pin replied message')}
-• `/unpin` — {frak('Unpin message')}
-• `/unpinall` — {frak('Unpin all')}
-• `/del` — {frak('Delete replied message')}
-• `/purge` — {frak('Delete from reply to now')}
-• `/clgroup` — {frak('Delete ALL group messages')}
+🌊 **{frak('Anti-Flood')}**
+`/setflood N` · `/flood` · `/setflood 0` _{frak('disable')}_
 
 ━━━━━━━━━━━━━━━━━━━━
 
-👮 **{frak('Admin')}** _(Group / Admin)_
-• `/promote [@user]` — {frak('Promote to admin')}
-• `/demote [@user]` — {frak('Demote from admin')}
-• `/title [@user] [text]` — {frak('Set admin title')}
-• `/admins` — {frak('List admins')}
+🔨 **{frak('Ban & Kick')}**
+`/ban` · `/unban` · `/tban` · `/kick`
 
 ━━━━━━━━━━━━━━━━━━━━
 
-🔒 **{frak('Group Lock')}** _(Group / Admin)_
-• `/lock` — {frak('Lock group')}
-• `/unlock` — {frak('Unlock group')}
-• `/setgrouppic <10|20|30>` — {frak('Media delete timer')}
-• `/groupinfo` — {frak('Group settings')}
+🔇 **{frak('Mute')}**
+`/mute` · `/unmute` · `/tmute`
 
 ━━━━━━━━━━━━━━━━━━━━
 
-📊 **{frak('Info')}**
-• `/info [@user]` — {frak('User info')}
-• `/id` — {frak('Get IDs')}
-• `/start` — {frak('Main menu')}
-• `/help` — {frak('This menu')}
+⚠️ **{frak('Warns')}** _(3 = auto ban)_
+`/warn` · `/unwarn` · `/warns` · `/resetwarns`
+
+━━━━━━━━━━━━━━━━━━━━
+
+📌 **{frak('Messages')}**
+`/pin` · `/unpin` · `/unpinall`
+`/del` · `/purge` · `/clgroup`
+
+━━━━━━━━━━━━━━━━━━━━
+
+👮 **{frak('Admin')}**
+`/promote` · `/demote` · `/title` · `/admins`
+
+━━━━━━━━━━━━━━━━━━━━
+
+🔒 **{frak('Group')}**
+`/lock` · `/unlock` · `/setgrouppic <10|20|30>`
+`/groupinfo` · `/info` · `/id` · `/help`
 """.strip()
+
+
+async def _get_random_sticker(client: Client):
+    global _sticker_cache
+    if not _sticker_cache:
+        try:
+            ss = await client.get_sticker_set(STICKER_SET)
+            _sticker_cache = [s.file_id for s in ss.stickers]
+        except Exception:
+            return None
+    return random.choice(_sticker_cache) if _sticker_cache else None
+
+
+async def _send_start_animation(client: Client, chat_id: int, user_name: str, is_owner: bool, is_auth: bool):
+    me = await client.get_me()
+    role_val = frak("Owner 👑") if is_owner else frak("Authorized User ✅")
+
+    sticker_id = await _get_random_sticker(client)
+    sticker_msg = None
+    if sticker_id:
+        try:
+            sticker_msg = await client.send_sticker(chat_id, sticker_id)
+        except Exception:
+            pass
+
+    await asyncio.sleep(0.8)
+
+    anim = await client.send_message(
+        chat_id,
+        f"**{frak('HLO THERE')}** . . . . ."
+    )
+    await asyncio.sleep(1.0)
+
+    await anim.edit(
+        f"**{frak('HLO THERE')}** . . . . .\n\n"
+        f"⚡ **{frak('STARTING AURA PROTECTOR')}** . . ."
+    )
+    await asyncio.sleep(1.2)
+
+    await anim.edit(
+        f"**{frak('HLO THERE')}** . . . . .\n\n"
+        f"⚡ **{frak('STARTING AURA PROTECTOR')}** . . .\n\n"
+        f"🛡️ **{frak('LOADING SYSTEMS')}** . . . ✅"
+    )
+    await asyncio.sleep(1.0)
+
+    try:
+        await anim.delete()
+    except Exception:
+        pass
+
+    main_msg = await client.send_message(
+        chat_id,
+        f"🤖 **{frak('GuardBot — Group Shield')}**\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"👋 {frak('Welcome back')}, **{user_name}**!\n"
+        f"🎖️ {frak('Role')}: {role_val}\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🛡️ **{frak('I am your Group Guardian')}**\n"
+        f"_{frak('Protecting your group from hateful content,')}_\n"
+        f"_{frak('slang, illegal media, and unauthorized changes.')}_\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"⚡ _{frak('Add me to your group and make me Admin!')}_"
+        f"{MADARA}",
+        reply_markup=markup(
+            [
+                primary(frak("✦ Help & Commands ✦"), data="show_help"),
+                success(frak("✦ Add to Group ✦"),
+                        url=f"https://t.me/{me.username}?startgroup=true")
+            ],
+            [
+                primary(frak("✦ Group Info ✦"), data="show_info"),
+                danger(frak("✦ Broadcast ✦"), data="show_broadcast")
+            ]
+        )
+    )
+    return main_msg
 
 
 def register(app: Client):
@@ -105,37 +179,15 @@ def register(app: Client):
                 f"🔒 **{frak('Access Restricted')}**\n\n"
                 f"{frak('You are not authorized to use this bot.')}\n"
                 f"{frak('Contact the owner to get access.')}\n\n"
-                f"**{frak('Owner Command:')}** `/auth {uid}`",
+                f"**{frak('Owner Command:')}** `/auth {uid}`"
+                f"{MADARA}",
                 reply_markup=markup([danger(frak("✦ Unauthorized ✦"))])
             )
             return
 
-        me = await client.get_me()
         name = message.from_user.first_name or "User"
-        role_val = frak("Owner 👑") if is_owner else frak("Authorized User ✅")
-
-        await message.reply(
-            f"🤖 **{frak('GuardBot — Group Shield')}**\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"👋 {frak('Welcome back')}, **{name}**!\n"
-            f"🎖️ {frak('Role')}: {role_val}\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"🛡️ **{frak('I am your Group Guardian')}**\n"
-            f"_{frak('Protecting your group from hateful content,')}_\n"
-            f"_{frak('slang, illegal media, and unauthorized changes.')}_\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"⚡ _{frak('Add me to your group and make me Admin!')}_",
-            reply_markup=markup(
-                [
-                    primary(frak("✦ Help & Commands ✦"), data="show_help"),
-                    success(frak("✦ Add to Group ✦"),
-                            url=f"https://t.me/{me.username}?startgroup=true")
-                ],
-                [
-                    primary(frak("✦ Group Info ✦"), data="show_info"),
-                    danger(frak("✦ Broadcast ✦"), data="show_broadcast")
-                ]
-            )
+        await _send_start_animation(
+            client, message.chat.id, name, is_owner, is_auth
         )
 
     @app.on_callback_query(filters.regex("^show_help$"))
@@ -172,7 +224,8 @@ def register(app: Client):
             f"_{frak('Protecting your group from hateful content,')}_\n"
             f"_{frak('slang, illegal media, and unauthorized changes.')}_\n\n"
             f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"⚡ _{frak('Add me to your group and make me Admin!')}_",
+            f"⚡ _{frak('Add me to your group and make me Admin!')}_"
+            f"{MADARA}",
             reply_markup=markup(
                 [
                     primary(frak("✦ Help & Commands ✦"), data="show_help"),
@@ -192,22 +245,23 @@ def register(app: Client):
         await query.message.edit(
             f"ℹ️ **{frak('About GuardBot')}**\n\n"
             f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"🤖 **{frak('Version')}:** 3.0\n"
-            f"⚙️ **{frak('Framework')}:** Kurigram v2.2.23\n"
-            f"🐍 **{frak('Language')}:** Python 3.11\n\n"
+            f"🤖 **{frak('Version:')}** 4.0\n"
+            f"⚙️ **{frak('Framework:')}** Kurigram v2.2.23\n"
+            f"🐍 **{frak('Language:')}** Python 3.11\n\n"
             f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"🛡️ **{frak('Active Protections')}:**\n"
+            f"🛡️ **{frak('Active Protections:')}**\n"
             f"• ✅ {frak('Slang filter — all languages + bots')}\n"
             f"• ✅ {frak('Illegal media auto-removal')}\n"
             f"• ✅ {frak('Media auto-delete timer')}\n"
             f"• ✅ {frak('Group name & photo shield')}\n"
             f"• ✅ {frak('Certified member system')}\n"
-            f"• ✅ {frak('Full admin command suite')}\n"
-            f"• ✅ {frak('Warn system (3 strikes = ban)')}\n"
-            f"• ✅ {frak('Welcome messages with profile photo')}\n"
-            f"• ✅ {frak('Owner broadcast system')}\n"
-            f"• ✅ {frak('Group clear command')}\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━",
+            f"• ✅ {frak('Full admin suite (like MissRose)')}\n"
+            f"• ✅ {frak('Notes, Rules, Filters system')}\n"
+            f"• ✅ {frak('Anti-Flood protection')}\n"
+            f"• ✅ {frak('Welcome messages with photo')}\n"
+            f"• ✅ {frak('Owner broadcast system')}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━"
+            f"{MADARA}",
             reply_markup=markup(
                 [
                     success(frak("✦ Back to Menu ✦"), data="show_start"),
@@ -225,15 +279,14 @@ def register(app: Client):
         await query.message.edit(
             f"📢 **{frak('Broadcast System')}**\n\n"
             f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"_{frak('Go to private chat with me and:')}_ \n\n"
-            f"1. {frak('Forward or write the message you want to send')}\n"
+            f"1. {frak('Write or forward a message to me in PM')}\n"
             f"2. {frak('Reply to it with')} `/broadcast`\n\n"
-            f"📡 {frak('The message will be sent to all groups.')}\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━",
+            f"📡 {frak('Sent to all groups the bot is in.')}"
+            f"{MADARA}",
             reply_markup=markup(
                 [
                     primary(frak("✦ Back to Menu ✦"), data="show_start"),
-                    success(frak("✦ How to Broadcast ✦"), data="noop")
+                    success(frak("✦ Go to PM ✦"), data="noop")
                 ]
             )
         )
