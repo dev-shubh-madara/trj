@@ -16,7 +16,8 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    c.execute("""CREATE TABLE IF NOT EXISTS authorized_users (user_id INTEGER PRIMARY KEY)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS authorized_users (
+        user_id INTEGER PRIMARY KEY)""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS certified_users (
         user_id INTEGER, chat_id INTEGER, PRIMARY KEY (user_id, chat_id))""")
@@ -25,7 +26,9 @@ def init_db():
         chat_id INTEGER PRIMARY KEY,
         media_delete_time INTEGER DEFAULT 30,
         group_title TEXT,
-        group_photo_id TEXT)""")
+        group_photo_id TEXT,
+        welcome_text TEXT,
+        welcome_enabled INTEGER DEFAULT 1)""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS warns (
         user_id INTEGER, chat_id INTEGER, count INTEGER DEFAULT 0,
@@ -33,6 +36,18 @@ def init_db():
         PRIMARY KEY (user_id, chat_id))""")
 
     conn.commit()
+
+    try:
+        conn.execute("ALTER TABLE group_settings ADD COLUMN welcome_text TEXT")
+        conn.commit()
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE group_settings ADD COLUMN welcome_enabled INTEGER DEFAULT 1")
+        conn.commit()
+    except Exception:
+        pass
+
     conn.close()
 
 
@@ -50,7 +65,9 @@ def remove_authorized_user(user_id: int):
 
 def is_authorized(user_id: int) -> bool:
     conn = get_conn()
-    return conn.execute("SELECT 1 FROM authorized_users WHERE user_id = ?", (user_id,)).fetchone() is not None
+    return conn.execute(
+        "SELECT 1 FROM authorized_users WHERE user_id = ?", (user_id,)
+    ).fetchone() is not None
 
 
 def add_certified_user(user_id: int, chat_id: int):
@@ -84,7 +101,9 @@ def set_media_delete_time(chat_id: int, seconds: int):
 
 def get_media_delete_time(chat_id: int) -> int:
     conn = get_conn()
-    row = conn.execute("SELECT media_delete_time FROM group_settings WHERE chat_id=?", (chat_id,)).fetchone()
+    row = conn.execute(
+        "SELECT media_delete_time FROM group_settings WHERE chat_id=?", (chat_id,)
+    ).fetchone()
     return row["media_delete_time"] if row else 30
 
 
@@ -122,23 +141,31 @@ def get_group_photo_id(chat_id: int):
 
 def add_warn(user_id: int, chat_id: int, reason: str = "") -> int:
     conn = get_conn()
-    row = conn.execute("SELECT count, reasons FROM warns WHERE user_id=? AND chat_id=?", (user_id, chat_id)).fetchone()
+    row = conn.execute(
+        "SELECT count, reasons FROM warns WHERE user_id=? AND chat_id=?", (user_id, chat_id)
+    ).fetchone()
     if row:
         new_count = row["count"] + 1
         reasons = row["reasons"] + (f"|{reason}" if reason else "|")
-        conn.execute("UPDATE warns SET count=?, reasons=? WHERE user_id=? AND chat_id=?",
-                     (new_count, reasons, user_id, chat_id))
+        conn.execute(
+            "UPDATE warns SET count=?, reasons=? WHERE user_id=? AND chat_id=?",
+            (new_count, reasons, user_id, chat_id)
+        )
     else:
         new_count = 1
-        conn.execute("INSERT INTO warns (user_id, chat_id, count, reasons) VALUES (?,?,1,?)",
-                     (user_id, chat_id, reason))
+        conn.execute(
+            "INSERT INTO warns (user_id, chat_id, count, reasons) VALUES (?,?,1,?)",
+            (user_id, chat_id, reason)
+        )
     conn.commit()
     return new_count
 
 
 def get_warns(user_id: int, chat_id: int):
     conn = get_conn()
-    row = conn.execute("SELECT count, reasons FROM warns WHERE user_id=? AND chat_id=?", (user_id, chat_id)).fetchone()
+    row = conn.execute(
+        "SELECT count, reasons FROM warns WHERE user_id=? AND chat_id=?", (user_id, chat_id)
+    ).fetchone()
     if not row:
         return 0, []
     reasons = [r for r in row["reasons"].split("|") if r]
@@ -147,15 +174,19 @@ def get_warns(user_id: int, chat_id: int):
 
 def remove_warn(user_id: int, chat_id: int) -> int:
     conn = get_conn()
-    row = conn.execute("SELECT count, reasons FROM warns WHERE user_id=? AND chat_id=?", (user_id, chat_id)).fetchone()
+    row = conn.execute(
+        "SELECT count, reasons FROM warns WHERE user_id=? AND chat_id=?", (user_id, chat_id)
+    ).fetchone()
     if not row or row["count"] == 0:
         return 0
     new_count = max(0, row["count"] - 1)
     reasons = row["reasons"].split("|")
     if reasons:
         reasons = reasons[:-1]
-    conn.execute("UPDATE warns SET count=?, reasons=? WHERE user_id=? AND chat_id=?",
-                 (new_count, "|".join(reasons), user_id, chat_id))
+    conn.execute(
+        "UPDATE warns SET count=?, reasons=? WHERE user_id=? AND chat_id=?",
+        (new_count, "|".join(reasons), user_id, chat_id)
+    )
     conn.commit()
     return new_count
 

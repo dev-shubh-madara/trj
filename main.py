@@ -14,6 +14,9 @@ import handlers.word_filter as word_handler
 import handlers.group_protection as group_protection_handler
 import handlers.settings as settings_handler
 import handlers.admin as admin_handler
+import handlers.welcome as welcome_handler
+import handlers.broadcast as broadcast_handler
+import handlers.clgroup as clgroup_handler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,6 +44,9 @@ def register_all_handlers(app: Client):
     media_handler.register(app)
     settings_handler.register(app)
     admin_handler.register(app)
+    welcome_handler.register(app)
+    broadcast_handler.register(app)
+    clgroup_handler.register(app)
     log.info("All handlers registered successfully.")
 
 
@@ -65,7 +71,11 @@ async def main():
                 f"✅ Bot: @{me.username}\n"
                 f"🆔 Bot ID: `{me.id}`\n"
                 f"👑 Owner: `{OWNER_ID}`\n\n"
-                f"All systems active. Add me to your group and make me admin!\n"
+                f"🆕 **New Features Active:**\n"
+                f"• 👋 Welcome messages with profile photo\n"
+                f"• 📢 Broadcast system (`/broadcast`)\n"
+                f"• 🗑️ Group clear command (`/clgroup`)\n"
+                f"• 🤖 Bot illegal message filter\n\n"
                 f"Send /start to see the full command menu."
             )
         except Exception:
