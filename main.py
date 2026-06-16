@@ -1,9 +1,11 @@
 import asyncio
 import logging
 from pyrogram import Client
+from pyrogram.enums import ParseMode
 
 from config import API_ID, API_HASH, BOT_TOKEN, OWNER_ID
 from database import init_db
+from utils.emojis import load_emoji_packs, em, ems, em_row
 
 import handlers.help as help_handler
 import handlers.auth as auth_handler
@@ -69,21 +71,30 @@ async def main():
     async with app:
         me = await app.get_me()
         log.info(f"Bot: @{me.username} ({me.id}) | Owner: {OWNER_ID}")
+
+        log.info("Loading premium emoji packs...")
+        count = await load_emoji_packs(app)
+        log.info(f"Emoji pool ready: {count} emojis")
+
+        startup_text = (
+            f"{em_row(6)}\n\n"
+            f"{em()} <b>GuardBot v4 Online!</b> {em()}\n\n"
+            f"@{me.username} | <code>{me.id}</code>\n\n"
+            f"{em()} New bot token active\n"
+            f"{em()} {count} premium emojis loaded\n"
+            f"{em()} HTML parse mode everywhere\n"
+            f"{em()} Colorful button help menu\n"
+            f"{em()} Welcome with spoiler photo\n"
+            f"{em()} /ping command active\n"
+            f"{em()} Notes · Rules · Filters · Flood\n\n"
+            f"{em_row(6)}\n\n"
+            f"— <b>Powered by Madara</b> 🔥"
+        )
         try:
-            await app.send_message(
-                OWNER_ID,
-                f"🤖 **GuardBot v4 Online!**\n\n"
-                f"@{me.username} | `{me.id}`\n\n"
-                f"✅ Colorful command button menu\n"
-                f"✅ Broadcast = owner only\n"
-                f"✅ Welcome fixed (groups + supergroups)\n"
-                f"✅ Profile photo as spoiler in welcome\n"
-                f"✅ /ping command added\n"
-                f"✅ Notes · Rules · Filters · Anti-Flood\n"
-                f"✅ Powered by Madara 🔥"
-            )
-        except Exception:
-            pass
+            await app.send_message(OWNER_ID, startup_text, parse_mode=ParseMode.HTML)
+        except Exception as e:
+            log.warning(f"DM owner skipped ({e}) — send /start to the bot first.")
+
         log.info("GuardBot is protecting.")
         await asyncio.Event().wait()
 

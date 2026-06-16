@@ -3,7 +3,7 @@ import os
 import tempfile
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMemberUpdated
-from pyrogram.enums import MessageServiceType, ChatMemberStatus
+from pyrogram.enums import MessageServiceType, ChatMemberStatus, ParseMode
 from database import (
     save_group_title, get_group_title,
     save_group_photo_id, get_group_photo_id,
@@ -12,10 +12,13 @@ from database import (
 from config import OWNER_ID
 from utils.font import frak
 from utils.buttons import markup, primary, success, danger
+from utils.emojis import em, em_row
+
+PM = ParseMode.HTML
+MADARA = f"\n\n— <b>{frak('Powered by Madara')}</b> 🔥"
 
 
 def _is_allowed(actor_id, chat_id):
-    """Owner or certified member — allowed to change group settings."""
     if actor_id is None:
         return False
     if actor_id == OWNER_ID:
@@ -36,7 +39,7 @@ async def snapshot_group(client: Client, chat_id: int):
         pass
 
 
-async def _restore_photo(client: Client, chat_id: int, old_photo_id: str, actor_mention: str):
+async def _restore_photo(client, chat_id, old_photo_id, actor_mention):
     tmp_path = None
     try:
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
@@ -46,14 +49,16 @@ async def _restore_photo(client: Client, chat_id: int, old_photo_id: str, actor_
             await client.set_chat_photo(chat_id, photo=tmp_path)
             await client.send_message(
                 chat_id,
-                f"🔵 **{frak('Group Photo Protected!')}**\n\n"
-                f"👤 **{frak('By:')}** {actor_mention}\n"
-                f"✅ **{frak('Action:')}** {frak('Original photo restored')}\n\n"
-                f"_{frak('Only the owner or certified members can change the group photo.')}_\n\n"
-                f"— **{frak('Powered by Madara')}** 🔥",
+                f"{em_row(5)}\n\n"
+                f"🔵 <b>{frak('Group Photo Protected!')}</b>\n\n"
+                f"{em()} <b>{frak('By:')}</b> {actor_mention}\n"
+                f"{em()} <b>{frak('Action:')}</b> {frak('Original photo restored')}\n\n"
+                f"<i>{frak('Only the owner or certified members can change the group photo.')}</i>"
+                f"{MADARA}",
+                parse_mode=PM,
                 reply_markup=markup([primary(frak("Group Photo Restored ✅"))])
             )
-    except Exception as e:
+    except Exception:
         pass
     finally:
         if tmp_path and os.path.exists(tmp_path):
@@ -67,7 +72,6 @@ def register(app: Client):
 
     @app.on_chat_member_updated()
     async def on_bot_added(client: Client, update: ChatMemberUpdated):
-        """Auto-snapshot when bot is added to a group."""
         me = await client.get_me()
         if not update.new_chat_member:
             return
@@ -76,9 +80,8 @@ def register(app: Client):
         if update.new_chat_member.status in (
             ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.MEMBER
         ):
-            chat_id = update.chat.id
             await asyncio.sleep(2)
-            await snapshot_group(client, chat_id)
+            await snapshot_group(client, update.chat.id)
 
     @app.on_message(filters.group & filters.service, group=0)
     async def handle_service(client: Client, message: Message):
@@ -88,7 +91,6 @@ def register(app: Client):
         chat_id = message.chat.id
         actor_id = message.from_user.id if message.from_user else None
         actor_mention = message.from_user.mention if message.from_user else frak("Someone")
-
         allowed = _is_allowed(actor_id, chat_id)
 
         if message.service == MessageServiceType.NEW_CHAT_TITLE:
@@ -96,7 +98,6 @@ def register(app: Client):
             if allowed:
                 save_group_title(chat_id, new_title)
                 return
-
             old_title = get_group_title(chat_id)
             if old_title and new_title != old_title:
                 try:
@@ -104,12 +105,14 @@ def register(app: Client):
                     await client.set_chat_title(chat_id, old_title)
                     await client.send_message(
                         chat_id,
-                        f"🔵 **{frak('Group Name Protected!')}**\n\n"
-                        f"👤 **{frak('By:')}** {actor_mention}\n"
-                        f"❌ **{frak('Attempted Name:')}** `{new_title}`\n"
-                        f"✅ **{frak('Restored to:')}** `{old_title}`\n\n"
-                        f"_{frak('Only the owner or certified members can change the group name.')}_\n\n"
-                        f"— **{frak('Powered by Madara')}** 🔥",
+                        f"{em_row(5)}\n\n"
+                        f"🔵 <b>{frak('Group Name Protected!')}</b>\n\n"
+                        f"{em()} <b>{frak('By:')}</b> {actor_mention}\n"
+                        f"{em()} ❌ <b>{frak('Attempted:')}</b> <code>{new_title}</code>\n"
+                        f"{em()} ✅ <b>{frak('Restored:')}</b> <code>{old_title}</code>\n\n"
+                        f"<i>{frak('Only the owner or certified members can change the group name.')}</i>"
+                        f"{MADARA}",
+                        parse_mode=PM,
                         reply_markup=markup([primary(frak("Group Name Restored ✅"))])
                     )
                 except Exception:
@@ -126,7 +129,6 @@ def register(app: Client):
                 except Exception:
                     pass
                 return
-
             old_photo_id = get_group_photo_id(chat_id)
             if old_photo_id:
                 await asyncio.sleep(1)
@@ -142,7 +144,6 @@ def register(app: Client):
         elif message.service == MessageServiceType.DELETE_CHAT_PHOTO:
             if allowed:
                 return
-
             old_photo_id = get_group_photo_id(chat_id)
             if old_photo_id:
                 await asyncio.sleep(1)
@@ -160,11 +161,13 @@ def register(app: Client):
         photo = get_group_photo_id(chat_id)
 
         await message.reply(
-            f"📸 **{frak('Group Snapshot Saved')}**\n\n"
-            f"📝 **{frak('Title:')}** `{title}`\n"
-            f"🖼️ **{frak('Photo:')}** {'Saved ✅' if photo else 'Not set ❌'}\n\n"
-            f"_{frak('The bot will now protect these settings.')}_\n\n"
-            f"— **{frak('Powered by Madara')}** 🔥",
+            f"{em_row(5)}\n\n"
+            f"📸 <b>{frak('Group Snapshot Saved')}</b>\n\n"
+            f"{em()} <b>{frak('Title:')}</b> <code>{title}</code>\n"
+            f"{em()} <b>{frak('Photo:')}</b> {'Saved ✅' if photo else 'Not set ❌'}\n\n"
+            f"<i>{frak('The bot will now protect these settings.')}</i>"
+            f"{MADARA}",
+            parse_mode=PM,
             reply_markup=markup(
                 [success(frak("Snapshot Saved ✅")), primary(frak("Now Protected 🛡️"))]
             )

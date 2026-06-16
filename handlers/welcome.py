@@ -2,13 +2,15 @@ import os
 import tempfile
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMemberUpdated
-from pyrogram.enums import ChatMemberStatus
+from pyrogram.enums import ChatMemberStatus, ParseMode
 
 from database import get_conn
 from utils.font import frak
 from utils.buttons import markup, primary, success, danger
+from utils.emojis import em, ems, em_row
 
-MADARA = f"\n\n— **{frak('Powered by Madara')}** 🔥"
+PM = ParseMode.HTML
+MADARA = f"\n\n— <b>{frak('Powered by Madara')}</b> 🔥"
 
 
 def _get_welcome(chat_id):
@@ -44,13 +46,12 @@ def _toggle_welcome(chat_id, enabled):
 
 
 async def _do_welcome(client: Client, chat_id: int, chat_title: str, user):
-    """Core welcome sender — works for both group types."""
     welcome_text, enabled = _get_welcome(chat_id)
     if not enabled:
         return
 
     name = user.first_name or "Member"
-    mention = user.mention
+    mention = f'<a href="tg://user?id={user.id}">{name}</a>'
     chat_name = chat_title or "the group"
 
     if welcome_text:
@@ -62,22 +63,24 @@ async def _do_welcome(client: Client, chat_id: int, chat_title: str, user):
                 .replace("{id}", str(user.id)))
     else:
         text = (
-            f"👋 **{frak('Welcome')}, {mention}!**\n\n"
-            f"🎉 {frak('You have joined')} **{chat_name}**\n\n"
+            f"{em_row(6)}\n\n"
+            f"👋 <b>{frak('Welcome')}</b>, {mention}!\n\n"
+            f"{em()} {frak('You have joined')} <b>{chat_name}</b>\n\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"📋 **{frak('Group Rules')}:**\n"
-            f"• 🚫 {frak('No slang or hate speech')}\n"
-            f"• 🚫 {frak('No illegal content or media')}\n"
-            f"• 🚫 {frak('No spam or flooding')}\n"
-            f"• ✅ {frak('Be respectful to everyone')}\n"
+            f"📋 <b>{frak('Group Rules:')}</b>\n"
+            f"{em()} 🚫 {frak('No slang or hate speech')}\n"
+            f"{em()} 🚫 {frak('No illegal content or media')}\n"
+            f"{em()} 🚫 {frak('No spam or flooding')}\n"
+            f"{em()} ✅ {frak('Be respectful to everyone')}\n"
             f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"🛡️ _{frak('This group is protected by GuardBot')}_"
+            f"{em_row(6)}\n\n"
+            f"🛡️ <i>{frak('This group is protected by GuardBot')}</i>"
             f"{MADARA}"
         )
 
     kb = markup(
-        [success(frak("✦ Welcome ✦")), primary(frak("✦ Read Rules /rules ✦"))],
-        [danger(frak("✦ No Slang ✦")), success(frak("✦ Be Respectful ✦"))]
+        [success(frak("✦ Welcome ✦")),  primary(frak("✦ /rules ✦"))],
+        [danger( frak("✦ No Slang ✦")), success(frak("✦ Be Respectful ✦"))]
     )
 
     pfp_path = None
@@ -99,13 +102,14 @@ async def _do_welcome(client: Client, chat_id: int, chat_title: str, user):
                 photo=pfp_path,
                 caption=text,
                 has_spoiler=True,
+                parse_mode=PM,
                 reply_markup=kb
             )
         else:
-            await client.send_message(chat_id, text, reply_markup=kb)
+            await client.send_message(chat_id, text, parse_mode=PM, reply_markup=kb)
     except Exception:
         try:
-            await client.send_message(chat_id, text, reply_markup=kb)
+            await client.send_message(chat_id, text, parse_mode=PM, reply_markup=kb)
         except Exception:
             pass
     finally:
@@ -119,8 +123,7 @@ async def _do_welcome(client: Client, chat_id: int, chat_title: str, user):
 def register(app: Client):
 
     @app.on_message(filters.new_chat_members & filters.group, group=2)
-    async def welcome_service(client: Client, message: Message):
-        """Fires for REGULAR groups when someone joins."""
+    async def welcome_regular(client: Client, message: Message):
         for user in message.new_chat_members:
             if user.is_bot:
                 continue
@@ -128,7 +131,6 @@ def register(app: Client):
 
     @app.on_chat_member_updated()
     async def welcome_supergroup(client: Client, update: ChatMemberUpdated):
-        """Fires for SUPERGROUPS on member status change."""
         if update.chat is None:
             return
         if update.chat.type.value not in ("group", "supergroup"):
@@ -136,12 +138,12 @@ def register(app: Client):
         if not update.new_chat_member:
             return
 
-        new_status = update.new_chat_member.status
-        old_status = update.old_chat_member.status if update.old_chat_member else None
+        new_s = update.new_chat_member.status
+        old_s = update.old_chat_member.status if update.old_chat_member else None
 
         joined = (
-            new_status in (ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR)
-            and old_status in (ChatMemberStatus.LEFT, ChatMemberStatus.BANNED, None)
+            new_s in (ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR)
+            and old_s in (ChatMemberStatus.LEFT, ChatMemberStatus.BANNED, None)
         )
         if not joined:
             return
@@ -149,7 +151,6 @@ def register(app: Client):
         user = update.new_chat_member.user
         if user.is_bot:
             return
-
         await _do_welcome(client, update.chat.id, update.chat.title, user)
 
     @app.on_message(filters.command("setwelcome") & filters.group)
@@ -163,20 +164,22 @@ def register(app: Client):
         if len(parts) < 2 or parts[1].strip().lower() == "off":
             _toggle_welcome(message.chat.id, False)
             return await message.reply(
-                f"🔕 **{frak('Welcome Messages Disabled')}**\n"
-                f"_{frak('Use /setwelcome text to re-enable.')}_",
+                f"{em()} <b>{frak('Welcome Messages Disabled')}</b>\n"
+                f"<i>{frak('Use /setwelcome text to re-enable.')}</i>",
+                parse_mode=PM,
                 reply_markup=markup([danger(frak("✦ Welcome Off ✦"))])
             )
 
         _save_welcome(message.chat.id, parts[1].strip())
         await message.reply(
-            f"✅ **{frak('Welcome Message Set!')}**\n\n"
-            f"📝 **{frak('Variables you can use:')}**\n"
-            f"• `{{name}}` — {frak('user mention')}\n"
-            f"• `{{first}}` — {frak('first name')}\n"
-            f"• `{{chat}}` — {frak('group name')}\n"
-            f"• `{{id}}` — {frak('user ID')}\n\n"
-            f"_{frak('Profile photo is sent as spoiler automatically.')}_",
+            f"{em()} <b>{frak('Welcome Message Set!')}</b>\n\n"
+            f"📝 <b>{frak('Variables you can use:')}</b>\n"
+            f"• <code>{{name}}</code> — {frak('user mention')}\n"
+            f"• <code>{{first}}</code> — {frak('first name')}\n"
+            f"• <code>{{chat}}</code> — {frak('group name')}\n"
+            f"• <code>{{id}}</code> — {frak('user ID')}\n\n"
+            f"<i>{frak('Profile photo is sent as spoiler automatically.')}</i>",
+            parse_mode=PM,
             reply_markup=markup([success(frak("✦ Welcome Set ✦"))])
         )
 
@@ -188,9 +191,10 @@ def register(app: Client):
             return
         wt, en = _get_welcome(message.chat.id)
         await message.reply(
-            f"👋 **{frak('Welcome System')}**\n\n"
-            f"🔘 **{frak('Status:')}** {frak('Enabled ✅') if en else frak('Disabled 🔕')}\n\n"
-            f"📝 **{frak('Message:')}**\n{wt or frak('Default message (with spoiler profile photo)')}",
+            f"{em()} <b>{frak('Welcome System')}</b>\n\n"
+            f"{em()} <b>{frak('Status:')}</b> {frak('Enabled ✅') if en else frak('Disabled 🔕')}\n\n"
+            f"📝 {wt or frak('Default message (spoiler profile photo)')}",
+            parse_mode=PM,
             reply_markup=markup(
                 [success(frak("✦ On ✦")) if en else danger(frak("✦ Off ✦")),
                  primary(frak("✦ /setwelcome ✦"))]
