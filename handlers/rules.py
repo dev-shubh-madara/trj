@@ -1,8 +1,12 @@
 from pyrogram import Client, filters
-from pyrogram.types import Message, CallbackQuery
+from pyrogram.types import Message
+from pyrogram.enums import ParseMode
 from database import get_conn
 from utils.font import frak
 from utils.buttons import markup, primary, success, danger
+from utils.emojis import em, em_row
+
+PM = ParseMode.HTML
 
 
 def _set_rules(chat_id, text):
@@ -33,8 +37,9 @@ def register(app: Client):
         parts = message.text.split(None, 1)
         if len(parts) < 2 and not message.reply_to_message:
             return await message.reply(
-                f"**{frak('Usage:')}** `/setrules your rules here`\n"
-                f"_{frak('Or reply to a message.')}_",
+                f"{em()} <b>{frak('Usage:')}</b> <code>/setrules your rules here</code>\n"
+                f"<i>{frak('Or reply to a message.')}</i>",
+                parse_mode=PM,
                 reply_markup=markup([primary(frak("✦ /setrules text ✦"))])
             )
         text = parts[1].strip() if len(parts) > 1 else (
@@ -42,7 +47,10 @@ def register(app: Client):
         )
         _set_rules(message.chat.id, text)
         await message.reply(
-            f"✅ **{frak('Rules Set!')}**\n\n_{frak('Members can view with')} `/rules`_",
+            f"{em_row(4)}\n\n"
+            f"✅ <b>{frak('Rules Set!')}</b>\n\n"
+            f"<i>{frak('Members can view with')} /rules</i>",
+            parse_mode=PM,
             reply_markup=markup([success(frak("✦ Rules Saved ✦"))])
         )
 
@@ -51,14 +59,19 @@ def register(app: Client):
         rules = _get_rules(message.chat.id)
         if not rules:
             return await message.reply(
-                f"**{frak('No rules set for this group.')}**\n"
-                f"_{frak('Admins can set rules with')} `/setrules`_",
+                f"{em()} <b>{frak('No rules set for this group.')}</b>\n"
+                f"<i>{frak('Admins can set rules with')} /setrules</i>",
+                parse_mode=PM,
                 reply_markup=markup([primary(frak("✦ /setrules ✦"))])
             )
         await message.reply(
-            f"📜 **{frak('Group Rules')}**\n\n{rules}\n\n"
-            f"— **{frak('Powered by Madara')}** 🔥",
-            reply_markup=markup([primary(frak("✦ Read & Follow ✦"))])
+            f"{em_row(5)}\n\n"
+            f"📜 <b>{frak('Group Rules')}</b>\n\n"
+            f"{rules}\n\n"
+            f"━━━━━━━━━━━━━━━━━\n"
+            f"— <b>{frak('Powered by Madara')}</b> 🔥",
+            parse_mode=PM,
+            reply_markup=markup([primary(frak("✦ Read & Follow ✦")), success(frak("✦ Respect the Rules ✦"))])
         )
 
     @app.on_message(filters.command("resetrules") & filters.group)
@@ -74,6 +87,7 @@ def register(app: Client):
         )
         conn.commit()
         await message.reply(
-            f"🗑️ **{frak('Rules Reset')}**",
+            f"{em()} 🗑️ <b>{frak('Rules Reset')}</b>",
+            parse_mode=PM,
             reply_markup=markup([danger(frak("✦ Rules Cleared ✦"))])
         )

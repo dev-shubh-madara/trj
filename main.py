@@ -23,6 +23,7 @@ import handlers.rules as rules_handler
 import handlers.filters_handler as filters_handler
 import handlers.antiflood as antiflood_handler
 import handlers.ping as ping_handler
+import handlers.grouptools as grouptools_handler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,7 +59,8 @@ def register_all_handlers(app: Client):
     filters_handler.register(app)
     antiflood_handler.register(app)
     ping_handler.register(app)
-    log.info("All 16 handlers registered.")
+    grouptools_handler.register(app)
+    log.info("All 17 handlers registered.")
 
 
 async def main():
@@ -80,13 +82,16 @@ async def main():
             f"{em_row(6)}\n\n"
             f"{em()} <b>GuardBot v4 Online!</b> {em()}\n\n"
             f"@{me.username} | <code>{me.id}</code>\n\n"
-            f"{em()} New bot token active\n"
+            f"{em()} 17 handlers registered\n"
             f"{em()} {count} premium emojis loaded\n"
             f"{em()} HTML parse mode everywhere\n"
-            f"{em()} Colorful button help menu\n"
-            f"{em()} Welcome with spoiler photo\n"
-            f"{em()} /ping command active\n"
-            f"{em()} Notes · Rules · Filters · Flood\n\n"
+            f"{em()} /report → alerts all admins via PM\n"
+            f"{em()} /ro /unro → read-only restriction\n"
+            f"{em()} /afk /unafk → AFK auto-reply\n"
+            f"{em()} /admins → list all admins\n"
+            f"{em()} /info /id → user info lookup\n"
+            f"{em()} /invite → generate invite link\n"
+            f"{em()} /lock [all/media/sticker]\n\n"
             f"{em_row(6)}\n\n"
             f"— <b>Powered by Madara</b> 🔥"
         )

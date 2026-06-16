@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timedelta
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatPermissions
+from pyrogram.enums import ParseMode
 from pyrogram.errors import UserAdminInvalid, ChatAdminRequired, PeerIdInvalid
 
 from config import OWNER_ID
@@ -10,7 +11,9 @@ from database import (
 )
 from utils.font import frak
 from utils.buttons import markup, primary, success, danger, default
+from utils.emojis import em, em_row
 
+PM = ParseMode.HTML
 MAX_WARNS = 3
 
 
@@ -50,7 +53,9 @@ def _admin_only(func):
             return
         if not await _is_admin(client, message.chat.id, uid):
             await message.reply(
-                f"**{frak('Only admins can use this command.')}**",
+                f"{em()} <b>{frak('Admins Only')}</b>\n\n"
+                f"{em()} {frak('Only group admins can use this command.')}",
+                parse_mode=PM,
                 reply_markup=markup([danger(frak("Admins Only"))])
             )
             return
@@ -66,21 +71,32 @@ def register(app: Client):
     async def cmd_ban(client: Client, message: Message):
         target = await _get_target(client, message)
         if not target:
-            return await message.reply(f"**{frak('Reply to a user or give username to ban.')}**",
-                                       reply_markup=markup([primary(frak("Usage: /ban @user"))]))
+            return await message.reply(
+                f"{em()} <b>{frak('Usage')}</b>\n\n"
+                f"{em()} <code>/ban @user reason</code>\n"
+                f"{em()} {frak('or reply to a user message')}",
+                parse_mode=PM,
+                reply_markup=markup([primary(frak("Reply + /ban reason"))])
+            )
         parts = message.text.split(None, 2)
-        reason = parts[2] if len(parts) > 2 else (parts[1] if not parts[1].startswith("@") and not parts[1].lstrip("-").isdigit() else "No reason provided")
+        reason = parts[2] if len(parts) > 2 else "No reason provided"
         try:
             await client.ban_chat_member(message.chat.id, target.id)
         except (UserAdminInvalid, ChatAdminRequired):
-            return await message.reply(f"**{frak('Cannot ban this user.')}**",
-                                       reply_markup=markup([danger(frak("Failed"))]))
+            return await message.reply(
+                f"{em()} <b>{frak('Cannot ban this user.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
         await message.reply(
-            f"🔨 **{frak('User Banned')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"🆔 **ID:** `{target.id}`\n"
-            f"📋 **{frak('Reason')}:** {reason}\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
+            f"{em_row(5)}\n\n"
+            f"🔨 <b>{frak('User Banned')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>ID:</b> <code>{target.id}</code>\n"
+            f"{em()} <b>{frak('Reason:')}</b> {reason}\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}\n\n"
+            f"— <b>{frak('Powered by Madara')}</b> 🔥",
+            parse_mode=PM,
             reply_markup=markup([danger(frak("Banned")), success(frak("Action Taken"))])
         )
 
@@ -89,17 +105,25 @@ def register(app: Client):
     async def cmd_unban(client: Client, message: Message):
         target = await _get_target(client, message)
         if not target:
-            return await message.reply(f"**{frak('Reply to a user or give username to unban.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a user to unban.')}</b>",
+                parse_mode=PM
+            )
         try:
             await client.unban_chat_member(message.chat.id, target.id)
         except Exception:
-            return await message.reply(f"**{frak('Cannot unban this user.')}**",
-                                       reply_markup=markup([danger(frak("Failed"))]))
+            return await message.reply(
+                f"{em()} <b>{frak('Cannot unban this user.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
         await message.reply(
-            f"✅ **{frak('User Unbanned')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"🆔 **ID:** `{target.id}`\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
+            f"{em_row(4)}\n\n"
+            f"✅ <b>{frak('User Unbanned')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>ID:</b> <code>{target.id}</code>\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}",
+            parse_mode=PM,
             reply_markup=markup([success(frak("Unbanned Successfully"))])
         )
 
@@ -110,26 +134,36 @@ def register(app: Client):
         target = await _get_target(client, message)
         if not target or len(parts) < 3:
             return await message.reply(
-                f"**{frak('Usage: /tban @user 1h reason')}**\n"
-                f"_Times: 10m, 2h, 1d_",
+                f"{em()} <b>{frak('Usage:')}</b> <code>/tban @user 1h reason</code>\n"
+                f"{em()} {frak('Times:')} <code>10m</code>, <code>2h</code>, <code>1d</code>",
+                parse_mode=PM,
                 reply_markup=markup([primary(frak("Usage: /tban @user time reason"))])
             )
-        time_str = parts[2] if message.reply_to_message else parts[2]
+        time_str = parts[2]
         secs = _parse_time(time_str)
         if not secs:
-            return await message.reply(f"**{frak('Invalid time. Use: 10m, 2h, 1d')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Invalid time. Use: 10m, 2h, 1d')}</b>",
+                parse_mode=PM
+            )
         until = datetime.now() + timedelta(seconds=secs)
         try:
             await client.ban_chat_member(message.chat.id, target.id, until_date=until)
         except (UserAdminInvalid, ChatAdminRequired):
-            return await message.reply(f"**{frak('Cannot ban this user.')}**",
-                                       reply_markup=markup([danger(frak("Failed"))]))
+            return await message.reply(
+                f"{em()} <b>{frak('Cannot ban this user.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
         await message.reply(
-            f"⏳ **{frak('Temp Ban Applied')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"⏱️ **{frak('Duration')}:** {time_str}\n"
-            f"📅 **{frak('Until')}:** {until.strftime('%Y-%m-%d %H:%M')}\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
+            f"{em_row(5)}\n\n"
+            f"⏳ <b>{frak('Temp Ban Applied')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>{frak('Duration:')}</b> <code>{time_str}</code>\n"
+            f"{em()} <b>{frak('Until:')}</b> <code>{until.strftime('%Y-%m-%d %H:%M')}</code>\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}\n\n"
+            f"— <b>{frak('Powered by Madara')}</b> 🔥",
+            parse_mode=PM,
             reply_markup=markup([danger(frak("Temp Banned")), success(frak("Auto-Expires"))])
         )
 
@@ -138,7 +172,10 @@ def register(app: Client):
     async def cmd_kick(client: Client, message: Message):
         target = await _get_target(client, message)
         if not target:
-            return await message.reply(f"**{frak('Reply to a user or give username to kick.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a user to kick.')}</b>",
+                parse_mode=PM
+            )
         parts = message.text.split(None, 2)
         reason = parts[2] if len(parts) > 2 else "No reason provided"
         try:
@@ -146,14 +183,19 @@ def register(app: Client):
             await asyncio.sleep(1)
             await client.unban_chat_member(message.chat.id, target.id)
         except (UserAdminInvalid, ChatAdminRequired):
-            return await message.reply(f"**{frak('Cannot kick this user.')}**",
-                                       reply_markup=markup([danger(frak("Failed"))]))
+            return await message.reply(
+                f"{em()} <b>{frak('Cannot kick this user.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
         await message.reply(
-            f"👢 **{frak('User Kicked')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"🆔 **ID:** `{target.id}`\n"
-            f"📋 **{frak('Reason')}:** {reason}\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
+            f"{em_row(4)}\n\n"
+            f"👢 <b>{frak('User Kicked')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>ID:</b> <code>{target.id}</code>\n"
+            f"{em()} <b>{frak('Reason:')}</b> {reason}\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}",
+            parse_mode=PM,
             reply_markup=markup([danger(frak("Kicked")), primary(frak("Can Rejoin"))])
         )
 
@@ -162,7 +204,10 @@ def register(app: Client):
     async def cmd_mute(client: Client, message: Message):
         target = await _get_target(client, message)
         if not target:
-            return await message.reply(f"**{frak('Reply to a user or give username to mute.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a user to mute.')}</b>",
+                parse_mode=PM
+            )
         parts = message.text.split(None, 2)
         reason = parts[2] if len(parts) > 2 else "No reason provided"
         try:
@@ -171,15 +216,21 @@ def register(app: Client):
                 ChatPermissions(can_send_messages=False)
             )
         except (UserAdminInvalid, ChatAdminRequired):
-            return await message.reply(f"**{frak('Cannot mute this user.')}**",
-                                       reply_markup=markup([danger(frak("Failed"))]))
+            return await message.reply(
+                f"{em()} <b>{frak('Cannot mute this user.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
         await message.reply(
-            f"🔇 **{frak('User Muted')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"🆔 **ID:** `{target.id}`\n"
-            f"📋 **{frak('Reason')}:** {reason}\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
-            reply_markup=markup([danger(frak("Muted")), success(frak("Use /unmute to restore"))])
+            f"{em_row(4)}\n\n"
+            f"🔇 <b>{frak('User Muted')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>ID:</b> <code>{target.id}</code>\n"
+            f"{em()} <b>{frak('Reason:')}</b> {reason}\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}\n\n"
+            f"{em()} <i>{frak('Use /unmute to restore.')}</i>",
+            parse_mode=PM,
+            reply_markup=markup([danger(frak("Muted")), success(frak("Use /unmute"))])
         )
 
     @app.on_message(filters.command("unmute") & filters.group)
@@ -187,7 +238,10 @@ def register(app: Client):
     async def cmd_unmute(client: Client, message: Message):
         target = await _get_target(client, message)
         if not target:
-            return await message.reply(f"**{frak('Reply to a user or give username to unmute.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a user to unmute.')}</b>",
+                parse_mode=PM
+            )
         try:
             await client.restrict_chat_member(
                 message.chat.id, target.id,
@@ -203,13 +257,18 @@ def register(app: Client):
                 )
             )
         except (UserAdminInvalid, ChatAdminRequired):
-            return await message.reply(f"**{frak('Cannot unmute this user.')}**",
-                                       reply_markup=markup([danger(frak("Failed"))]))
+            return await message.reply(
+                f"{em()} <b>{frak('Cannot unmute this user.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
         await message.reply(
-            f"🔊 **{frak('User Unmuted')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"🆔 **ID:** `{target.id}`\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
+            f"{em_row(4)}\n\n"
+            f"🔊 <b>{frak('User Unmuted')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>ID:</b> <code>{target.id}</code>\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}",
+            parse_mode=PM,
             reply_markup=markup([success(frak("Unmuted Successfully"))])
         )
 
@@ -220,13 +279,17 @@ def register(app: Client):
         target = await _get_target(client, message)
         if not target or len(parts) < 3:
             return await message.reply(
-                f"**{frak('Usage: /tmute @user 1h reason')}**",
+                f"{em()} <b>{frak('Usage:')}</b> <code>/tmute @user 1h reason</code>",
+                parse_mode=PM,
                 reply_markup=markup([primary(frak("Usage: /tmute @user time"))])
             )
-        time_str = parts[2] if message.reply_to_message else parts[2]
+        time_str = parts[2]
         secs = _parse_time(time_str)
         if not secs:
-            return await message.reply(f"**{frak('Invalid time. Use: 10m, 2h, 1d')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Invalid time. Use: 10m, 2h, 1d')}</b>",
+                parse_mode=PM
+            )
         until = datetime.now() + timedelta(seconds=secs)
         try:
             await client.restrict_chat_member(
@@ -235,14 +298,20 @@ def register(app: Client):
                 until_date=until
             )
         except (UserAdminInvalid, ChatAdminRequired):
-            return await message.reply(f"**{frak('Cannot mute this user.')}**",
-                                       reply_markup=markup([danger(frak("Failed"))]))
+            return await message.reply(
+                f"{em()} <b>{frak('Cannot mute this user.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
         await message.reply(
-            f"⏳ **{frak('Temp Mute Applied')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"⏱️ **{frak('Duration')}:** {time_str}\n"
-            f"📅 **{frak('Until')}:** {until.strftime('%Y-%m-%d %H:%M')}\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
+            f"{em_row(5)}\n\n"
+            f"⏳ <b>{frak('Temp Mute Applied')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>{frak('Duration:')}</b> <code>{time_str}</code>\n"
+            f"{em()} <b>{frak('Until:')}</b> <code>{until.strftime('%Y-%m-%d %H:%M')}</code>\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}\n\n"
+            f"— <b>{frak('Powered by Madara')}</b> 🔥",
+            parse_mode=PM,
             reply_markup=markup([danger(frak("Temp Muted")), success(frak("Auto-Expires"))])
         )
 
@@ -251,7 +320,10 @@ def register(app: Client):
     async def cmd_warn(client: Client, message: Message):
         target = await _get_target(client, message)
         if not target:
-            return await message.reply(f"**{frak('Reply to a user or give username to warn.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a user to warn.')}</b>",
+                parse_mode=PM
+            )
         parts = message.text.split(None, 2)
         reason = parts[2] if len(parts) > 2 else "No reason provided"
         count = add_warn(target.id, message.chat.id, reason)
@@ -262,21 +334,27 @@ def register(app: Client):
             except Exception:
                 pass
             return await message.reply(
-                f"🚫 **{frak('User Banned — Max Warns Reached')}**\n\n"
-                f"👤 **{frak('User')}:** {target.mention}\n"
-                f"⚠️ **{frak('Warns')}:** {MAX_WARNS}/{MAX_WARNS}\n"
-                f"📋 **{frak('Last Reason')}:** {reason}\n"
-                f"🔨 **{frak('Auto-banned for reaching max warnings.')}**",
+                f"{em_row(5)}\n\n"
+                f"🚫 <b>{frak('Auto-Ban — Max Warns Reached!')}</b>\n\n"
+                f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+                f"{em()} <b>{frak('Warns:')}</b> <code>{MAX_WARNS}/{MAX_WARNS}</code>\n"
+                f"{em()} <b>{frak('Last Reason:')}</b> {reason}\n"
+                f"{em()} 🔨 {frak('Automatically banned.')}\n\n"
+                f"— <b>{frak('Powered by Madara')}</b> 🔥",
+                parse_mode=PM,
                 reply_markup=markup([danger(frak(f"Auto Banned — {MAX_WARNS} Warns"))])
             )
+        bar = "🟥" * count + "⬜" * (MAX_WARNS - count)
         await message.reply(
-            f"⚠️ **{frak('Warning Issued')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"🆔 **ID:** `{target.id}`\n"
-            f"📋 **{frak('Reason')}:** {reason}\n"
-            f"⚠️ **{frak('Warns')}:** {count}/{MAX_WARNS}\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}\n\n"
-            f"_{frak('Reaching')} {MAX_WARNS} {frak('warns results in an automatic ban.')}_",
+            f"{em_row(4)}\n\n"
+            f"⚠️ <b>{frak('Warning Issued')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>ID:</b> <code>{target.id}</code>\n"
+            f"{em()} <b>{frak('Reason:')}</b> {reason}\n"
+            f"{em()} <b>{frak('Warns:')}</b> <code>{count}/{MAX_WARNS}</code> {bar}\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}\n\n"
+            f"<i>{frak('Reaching')} {MAX_WARNS} {frak('warns = auto-ban.')}</i>",
+            parse_mode=PM,
             reply_markup=markup(
                 [danger(frak(f"Warn {count}/{MAX_WARNS}")), primary(frak("Use /unwarn to remove"))]
             )
@@ -287,13 +365,18 @@ def register(app: Client):
     async def cmd_unwarn(client: Client, message: Message):
         target = await _get_target(client, message)
         if not target:
-            return await message.reply(f"**{frak('Reply to a user or give username.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a user.')}</b>",
+                parse_mode=PM
+            )
         new_count = remove_warn(target.id, message.chat.id)
         await message.reply(
-            f"✅ **{frak('Warning Removed')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"⚠️ **{frak('Remaining Warns')}:** {new_count}/{MAX_WARNS}\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
+            f"{em_row(4)}\n\n"
+            f"✅ <b>{frak('Warning Removed')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>{frak('Remaining Warns:')}</b> <code>{new_count}/{MAX_WARNS}</code>\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}",
+            parse_mode=PM,
             reply_markup=markup([success(frak("Warn Removed"))])
         )
 
@@ -303,15 +386,18 @@ def register(app: Client):
         if not target:
             target = message.from_user
         count, reasons = get_warns(target.id, message.chat.id)
-        reason_lines = "\n".join(f"  {i+1}. {r}" for i, r in enumerate(reasons)) or "  None"
+        bar = "🟥" * count + "⬜" * (MAX_WARNS - count)
+        reason_lines = "\n".join(f"  {i+1}. {r}" for i, r in enumerate(reasons)) or f"  {frak('None')}"
         await message.reply(
-            f"📋 **{frak('Warn Record')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"⚠️ **{frak('Total Warns')}:** {count}/{MAX_WARNS}\n"
-            f"📝 **{frak('Reasons')}:**\n{reason_lines}",
+            f"{em_row(4)}\n\n"
+            f"📋 <b>{frak('Warn Record')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>{frak('Total Warns:')}</b> <code>{count}/{MAX_WARNS}</code> {bar}\n"
+            f"{em()} <b>{frak('Reasons:')}</b>\n{reason_lines}",
+            parse_mode=PM,
             reply_markup=markup(
                 [primary(frak(f"{count}/{MAX_WARNS} Warns")),
-                 success(frak("Use /unwarn to remove")) if count > 0 else default(frak("No warns"))]
+                 success(frak("Use /unwarn to remove")) if count > 0 else default(frak("Clean Record"))]
             )
         )
 
@@ -320,13 +406,18 @@ def register(app: Client):
     async def cmd_reset_warns(client: Client, message: Message):
         target = await _get_target(client, message)
         if not target:
-            return await message.reply(f"**{frak('Reply to a user or give username.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a user.')}</b>",
+                parse_mode=PM
+            )
         reset_warns(target.id, message.chat.id)
         await message.reply(
-            f"🔄 **{frak('All Warnings Reset')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"⚠️ **{frak('Warns')}:** 0/{MAX_WARNS}\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
+            f"{em_row(4)}\n\n"
+            f"🔄 <b>{frak('All Warnings Reset')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>{frak('Warns:')}</b> <code>0/{MAX_WARNS}</code>\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}",
+            parse_mode=PM,
             reply_markup=markup([success(frak("Warns Reset"))])
         )
 
@@ -334,17 +425,25 @@ def register(app: Client):
     @_admin_only
     async def cmd_pin(client: Client, message: Message):
         if not message.reply_to_message:
-            return await message.reply(f"**{frak('Reply to a message to pin it.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a message to pin it.')}</b>",
+                parse_mode=PM
+            )
         try:
             await message.reply_to_message.pin(disable_notification=False)
             await message.reply(
-                f"📌 **{frak('Message Pinned')}**\n"
-                f"👮 **{frak('By')}:** {message.from_user.mention}",
+                f"{em_row(3)}\n\n"
+                f"📌 <b>{frak('Message Pinned!')}</b>\n"
+                f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}",
+                parse_mode=PM,
                 reply_markup=markup([success(frak("Pinned Successfully"))])
             )
         except Exception:
-            await message.reply(f"**{frak('Could not pin message.')}**",
-                                reply_markup=markup([danger(frak("Failed"))]))
+            await message.reply(
+                f"{em()} <b>{frak('Could not pin message.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
 
     @app.on_message(filters.command("unpin") & filters.group)
     @_admin_only
@@ -355,13 +454,17 @@ def register(app: Client):
             else:
                 await client.unpin_chat_message(message.chat.id)
             await message.reply(
-                f"📌 **{frak('Message Unpinned')}**\n"
-                f"👮 **{frak('By')}:** {message.from_user.mention}",
+                f"{em()} <b>{frak('Message Unpinned')}</b>\n"
+                f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}",
+                parse_mode=PM,
                 reply_markup=markup([success(frak("Unpinned"))])
             )
         except Exception:
-            await message.reply(f"**{frak('Could not unpin message.')}**",
-                                reply_markup=markup([danger(frak("Failed"))]))
+            await message.reply(
+                f"{em()} <b>{frak('Could not unpin.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
 
     @app.on_message(filters.command("unpinall") & filters.group)
     @_admin_only
@@ -369,20 +472,27 @@ def register(app: Client):
         try:
             await client.unpin_all_chat_messages(message.chat.id)
             await message.reply(
-                f"📌 **{frak('All Messages Unpinned')}**\n"
-                f"👮 **{frak('By')}:** {message.from_user.mention}",
+                f"{em()} <b>{frak('All Messages Unpinned')}</b>\n"
+                f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}",
+                parse_mode=PM,
                 reply_markup=markup([success(frak("All Unpinned"))])
             )
         except Exception:
-            await message.reply(f"**{frak('Could not unpin all messages.')}**",
-                                reply_markup=markup([danger(frak("Failed"))]))
+            await message.reply(
+                f"{em()} <b>{frak('Could not unpin all.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
 
     @app.on_message(filters.command("promote") & filters.group)
     @_admin_only
     async def cmd_promote(client: Client, message: Message):
         target = await _get_target(client, message)
         if not target:
-            return await message.reply(f"**{frak('Reply to a user or give username to promote.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a user to promote.')}</b>",
+                parse_mode=PM
+            )
         try:
             await client.promote_chat_member(
                 message.chat.id, target.id,
@@ -396,13 +506,18 @@ def register(app: Client):
                 can_pin_messages=True
             )
         except (UserAdminInvalid, ChatAdminRequired):
-            return await message.reply(f"**{frak('Cannot promote this user.')}**",
-                                       reply_markup=markup([danger(frak("Failed"))]))
+            return await message.reply(
+                f"{em()} <b>{frak('Cannot promote this user.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
         await message.reply(
-            f"⭐ **{frak('User Promoted')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"🆔 **ID:** `{target.id}`\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
+            f"{em_row(5)}\n\n"
+            f"⭐ <b>{frak('User Promoted!')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>ID:</b> <code>{target.id}</code>\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}",
+            parse_mode=PM,
             reply_markup=markup([success(frak("Promoted to Admin"))])
         )
 
@@ -411,27 +526,31 @@ def register(app: Client):
     async def cmd_demote(client: Client, message: Message):
         target = await _get_target(client, message)
         if not target:
-            return await message.reply(f"**{frak('Reply to a user or give username to demote.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a user to demote.')}</b>",
+                parse_mode=PM
+            )
         try:
             await client.promote_chat_member(
                 message.chat.id, target.id,
-                can_manage_chat=False,
-                can_delete_messages=False,
-                can_manage_video_chats=False,
-                can_restrict_members=False,
-                can_promote_members=False,
-                can_change_info=False,
-                can_invite_users=False,
-                can_pin_messages=False
+                can_manage_chat=False, can_delete_messages=False,
+                can_manage_video_chats=False, can_restrict_members=False,
+                can_promote_members=False, can_change_info=False,
+                can_invite_users=False, can_pin_messages=False
             )
         except (UserAdminInvalid, ChatAdminRequired):
-            return await message.reply(f"**{frak('Cannot demote this user.')}**",
-                                       reply_markup=markup([danger(frak("Failed"))]))
+            return await message.reply(
+                f"{em()} <b>{frak('Cannot demote this user.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
         await message.reply(
-            f"🔻 **{frak('User Demoted')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"🆔 **ID:** `{target.id}`\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
+            f"{em_row(3)}\n\n"
+            f"🔻 <b>{frak('User Demoted')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>ID:</b> <code>{target.id}</code>\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}",
+            parse_mode=PM,
             reply_markup=markup([danger(frak("Demoted")), success(frak("Reverted to Member"))])
         )
 
@@ -442,24 +561,33 @@ def register(app: Client):
         target = await _get_target(client, message)
         if not target:
             return await message.reply(
-                f"**{frak('Usage: /title @user Custom Title')}**",
+                f"{em()} <b>{frak('Usage:')}</b> <code>/title @user Custom Title</code>",
+                parse_mode=PM,
                 reply_markup=markup([primary(frak("Reply to user + /title text"))])
             )
-        title = parts[-1] if len(parts) > 1 else ""
+        title = " ".join(parts[1:]) if len(parts) > 1 else ""
         if message.reply_to_message and len(parts) > 1:
             title = " ".join(parts[1:])
         if not title:
-            return await message.reply(f"**{frak('Provide a title text.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Provide a title text.')}</b>",
+                parse_mode=PM
+            )
         try:
             await client.set_administrator_title(message.chat.id, target.id, title[:16])
         except Exception:
-            return await message.reply(f"**{frak('Cannot set title. Make sure user is admin.')}**",
-                                       reply_markup=markup([danger(frak("Failed"))]))
+            return await message.reply(
+                f"{em()} <b>{frak('Cannot set title. Make sure user is admin.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
         await message.reply(
-            f"🏷️ **{frak('Admin Title Set')}**\n\n"
-            f"👤 **{frak('User')}:** {target.mention}\n"
-            f"🏷️ **{frak('Title')}:** `{title[:16]}`\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
+            f"{em_row(3)}\n\n"
+            f"🏷️ <b>{frak('Admin Title Set!')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>{frak('Title:')}</b> <code>{title[:16]}</code>\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}",
+            parse_mode=PM,
             reply_markup=markup([success(frak(f"Title: {title[:16]}"))])
         )
 
@@ -467,19 +595,28 @@ def register(app: Client):
     @_admin_only
     async def cmd_del(client: Client, message: Message):
         if not message.reply_to_message:
-            return await message.reply(f"**{frak('Reply to a message to delete it.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a message to delete it.')}</b>",
+                parse_mode=PM
+            )
         try:
             await message.reply_to_message.delete()
             await message.delete()
         except Exception:
-            await message.reply(f"**{frak('Cannot delete that message.')}**",
-                                reply_markup=markup([danger(frak("Failed"))]))
+            await message.reply(
+                f"{em()} <b>{frak('Cannot delete that message.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
 
     @app.on_message(filters.command("purge") & filters.group)
     @_admin_only
     async def cmd_purge(client: Client, message: Message):
         if not message.reply_to_message:
-            return await message.reply(f"**{frak('Reply to a message to start purging from.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a message to start purging from.')}</b>",
+                parse_mode=PM
+            )
         start_id = message.reply_to_message.id
         end_id = message.id
         ids = list(range(start_id, end_id + 1))
@@ -493,9 +630,12 @@ def register(app: Client):
                 pass
         note = await client.send_message(
             message.chat.id,
-            f"🗑️ **{frak('Purge Complete')}**\n\n"
-            f"🗑️ **{frak('Deleted')}:** {deleted} messages\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
+            f"{em_row(3)}\n\n"
+            f"🗑️ <b>{frak('Purge Complete!')}</b>\n\n"
+            f"{em()} <b>{frak('Deleted:')}</b> <code>{deleted}</code> {frak('messages')}\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}\n\n"
+            f"— <b>{frak('Powered by Madara')}</b> 🔥",
+            parse_mode=PM,
             reply_markup=markup([success(frak(f"Purged {deleted} msgs"))])
         )
         await asyncio.sleep(5)
@@ -507,30 +647,48 @@ def register(app: Client):
     @app.on_message(filters.command("lock") & filters.group)
     @_admin_only
     async def cmd_lock(client: Client, message: Message):
+        parts = message.text.split()
+        lock_type = parts[1].lower() if len(parts) > 1 else "all"
         try:
-            await client.set_chat_permissions(
-                message.chat.id,
-                ChatPermissions(
-                    can_send_messages=False,
-                    can_send_media_messages=False,
-                    can_send_other_messages=False,
-                    can_add_web_page_previews=False,
-                    can_send_polls=False,
-                    can_invite_users=False,
-                    can_pin_messages=False,
-                    can_change_info=False
+            if lock_type in ("all", "chat"):
+                perms = ChatPermissions(
+                    can_send_messages=False, can_send_media_messages=False,
+                    can_send_other_messages=False, can_add_web_page_previews=False,
+                    can_send_polls=False
                 )
+            elif lock_type in ("media", "photo", "video"):
+                perms = ChatPermissions(
+                    can_send_messages=True, can_send_media_messages=False,
+                    can_send_other_messages=False, can_add_web_page_previews=False,
+                    can_send_polls=False
+                )
+            elif lock_type in ("sticker", "gif", "stickers"):
+                perms = ChatPermissions(
+                    can_send_messages=True, can_send_media_messages=True,
+                    can_send_other_messages=False
+                )
+            else:
+                perms = ChatPermissions(
+                    can_send_messages=False, can_send_media_messages=False,
+                    can_send_other_messages=False, can_add_web_page_previews=False,
+                    can_send_polls=False
+                )
+            await client.set_chat_permissions(message.chat.id, perms)
+            await message.reply(
+                f"{em_row(4)}\n\n"
+                f"🔒 <b>{frak('Group Locked!')}</b>\n\n"
+                f"{em()} <b>{frak('Type:')}</b> <code>{lock_type}</code>\n"
+                f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}\n\n"
+                f"<i>{frak('Use /unlock to restore.')}</i>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak(f"Locked: {lock_type}")), primary(frak("Use /unlock"))])
             )
         except Exception:
-            return await message.reply(f"**{frak('Cannot lock the group.')}**",
-                                       reply_markup=markup([danger(frak("Failed"))]))
-        await message.reply(
-            f"🔒 **{frak('Group Locked')}**\n\n"
-            f"🚫 **{frak('All members are now restricted.')}**\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}\n\n"
-            f"_{frak('Use')} /unlock {frak('to restore permissions.')}_",
-            reply_markup=markup([danger(frak("Group Locked")), primary(frak("Use /unlock"))])
-        )
+            await message.reply(
+                f"{em()} <b>{frak('Cannot lock group.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
 
     @app.on_message(filters.command("unlock") & filters.group)
     @_admin_only
@@ -539,73 +697,96 @@ def register(app: Client):
             await client.set_chat_permissions(
                 message.chat.id,
                 ChatPermissions(
-                    can_send_messages=True,
-                    can_send_media_messages=True,
-                    can_send_other_messages=True,
-                    can_add_web_page_previews=True,
-                    can_send_polls=True,
-                    can_invite_users=True,
-                    can_pin_messages=False,
-                    can_change_info=False
+                    can_send_messages=True, can_send_media_messages=True,
+                    can_send_other_messages=True, can_add_web_page_previews=True,
+                    can_send_polls=True, can_invite_users=True
                 )
             )
+            await message.reply(
+                f"{em_row(4)}\n\n"
+                f"🔓 <b>{frak('Group Unlocked!')}</b>\n\n"
+                f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}\n"
+                f"{em()} {frak('Members can send messages again.')}",
+                parse_mode=PM,
+                reply_markup=markup([success(frak("Unlocked")), danger(frak("Use /lock to re-lock"))])
+            )
         except Exception:
-            return await message.reply(f"**{frak('Cannot unlock the group.')}**",
-                                       reply_markup=markup([danger(frak("Failed"))]))
-        await message.reply(
-            f"🔓 **{frak('Group Unlocked')}**\n\n"
-            f"✅ **{frak('All members can send messages again.')}**\n"
-            f"👮 **{frak('By')}:** {message.from_user.mention}",
-            reply_markup=markup([success(frak("Group Unlocked"))])
-        )
+            await message.reply(
+                f"{em()} <b>{frak('Cannot unlock group.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
 
-    @app.on_message(filters.command("info") & filters.group)
-    async def cmd_info(client: Client, message: Message):
+    @app.on_message(filters.command("ro") & filters.group)
+    @_admin_only
+    async def cmd_ro(client: Client, message: Message):
+        """Read-only: restrict user from sending any message."""
         target = await _get_target(client, message)
         if not target:
-            target = message.from_user
-        count, _ = get_warns(target.id, message.chat.id)
-        cert = is_certified(target.id, message.chat.id)
-        try:
-            member = await client.get_chat_member(message.chat.id, target.id)
-            status = member.status.value.title()
-        except Exception:
-            status = "Unknown"
-        dc = getattr(target, "dc_id", "N/A")
-        await message.reply(
-            f"👤 **{frak('User Information')}**\n\n"
-            f"📛 **{frak('Name')}:** {target.mention}\n"
-            f"🆔 **{frak('User ID')}:** `{target.id}`\n"
-            f"🔖 **{frak('Username')}:** @{target.username or 'None'}\n"
-            f"🌐 **DC:** {dc}\n"
-            f"👮 **{frak('Status')}:** {status}\n"
-            f"⭐ **{frak('Certified')}:** {'Yes ✅' if cert else 'No ❌'}\n"
-            f"⚠️ **{frak('Warnings')}:** {count}/{MAX_WARNS}",
-            reply_markup=markup(
-                [primary(frak("Certified ⭐")) if cert else danger(frak("Not Certified")),
-                 success(frak(f"Warns: {count}/{MAX_WARNS}"))]
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a user to set read-only.')}</b>",
+                parse_mode=PM
             )
+        parts = message.text.split(None, 2)
+        reason = parts[2] if len(parts) > 2 else "No reason provided"
+        try:
+            await client.restrict_chat_member(
+                message.chat.id, target.id,
+                ChatPermissions(
+                    can_send_messages=False,
+                    can_send_media_messages=False,
+                    can_send_other_messages=False,
+                    can_add_web_page_previews=False,
+                    can_send_polls=False
+                )
+            )
+        except (UserAdminInvalid, ChatAdminRequired):
+            return await message.reply(
+                f"{em()} <b>{frak('Cannot restrict this user.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
+        await message.reply(
+            f"{em_row(4)}\n\n"
+            f"📖 <b>{frak('Read-Only Mode Applied')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>ID:</b> <code>{target.id}</code>\n"
+            f"{em()} <b>{frak('Reason:')}</b> {reason}\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}\n\n"
+            f"<i>{frak('User can read but not send. Use /unro to restore.')}</i>",
+            parse_mode=PM,
+            reply_markup=markup([danger(frak("Read-Only")), primary(frak("Use /unro"))])
         )
 
-    @app.on_message(filters.command("id") & filters.group)
-    async def cmd_id(client: Client, message: Message):
-        target = message.reply_to_message.from_user if message.reply_to_message else message.from_user
+    @app.on_message(filters.command("unro") & filters.group)
+    @_admin_only
+    async def cmd_unro(client: Client, message: Message):
+        target = await _get_target(client, message)
+        if not target:
+            return await message.reply(
+                f"{em()} <b>{frak('Reply to a user to remove read-only.')}</b>",
+                parse_mode=PM
+            )
+        try:
+            await client.restrict_chat_member(
+                message.chat.id, target.id,
+                ChatPermissions(
+                    can_send_messages=True, can_send_media_messages=True,
+                    can_send_other_messages=True, can_add_web_page_previews=True,
+                    can_send_polls=True, can_invite_users=True
+                )
+            )
+        except (UserAdminInvalid, ChatAdminRequired):
+            return await message.reply(
+                f"{em()} <b>{frak('Cannot unrestrict this user.')}</b>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak("Failed"))])
+            )
         await message.reply(
-            f"🆔 **{frak('ID Information')}**\n\n"
-            f"👤 **{frak('Your ID')}:** `{message.from_user.id}`\n"
-            f"💬 **{frak('Chat ID')}:** `{message.chat.id}`\n"
-            + (f"↩️ **{frak('Replied User ID')}:** `{target.id}`\n" if message.reply_to_message else ""),
-            reply_markup=markup([primary(frak(f"Chat: {message.chat.id}"))])
-        )
-
-    @app.on_message(filters.command("admins") & filters.group)
-    async def cmd_admins(client: Client, message: Message):
-        admins = []
-        async for member in client.get_chat_members(message.chat.id, filter="administrators"):
-            if not member.user.is_bot:
-                admins.append(f"• {member.user.mention}")
-        await message.reply(
-            f"👮 **{frak('Group Administrators')}**\n\n" + "\n".join(admins) if admins
-            else f"**{frak('No admins found.')}**",
-            reply_markup=markup([primary(frak(f"{len(admins)} Admins"))])
+            f"{em_row(3)}\n\n"
+            f"✅ <b>{frak('Read-Only Removed')}</b>\n\n"
+            f"{em()} <b>{frak('User:')}</b> {target.mention}\n"
+            f"{em()} <b>{frak('By:')}</b> {message.from_user.mention}",
+            parse_mode=PM,
+            reply_markup=markup([success(frak("Restored Full Access"))])
         )

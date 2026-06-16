@@ -1,9 +1,13 @@
 import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import Message
+from pyrogram.enums import ParseMode
 from database import is_certified, get_media_delete_time
 from utils.font import frak
 from utils.buttons import markup, danger
+from utils.emojis import em, em_row
+
+PM = ParseMode.HTML
 
 MEDIA_FILTER = (
     filters.photo | filters.video | filters.document | filters.sticker
@@ -29,12 +33,14 @@ def register(app: Client):
 
         try:
             warn_msg = await message.reply(
-                f"⏳ **{frak('Auto-Delete Warning')}**\n\n"
-                f"👤 {message.from_user.mention}\n"
-                f"📁 **{frak('Type:')}** {media_type}\n"
-                f"🕐 **{frak('Deleting in:')}** {delete_time} {frak('seconds')}\n\n"
-                f"_{frak('Only certified members can send media.')}_",
-                reply_markup=markup([danger(frak(f"Auto-deleting in {delete_time}s"))])
+                f"{em_row(3)}\n\n"
+                f"⏳ <b>{frak('Auto-Delete Warning')}</b>\n\n"
+                f"{em()} 👤 <b>{frak('User:')}</b> {message.from_user.mention}\n"
+                f"{em()} 📁 <b>{frak('Type:')}</b> {media_type}\n"
+                f"{em()} 🕐 <b>{frak('Deleting in:')}</b> <code>{delete_time}s</code>\n\n"
+                f"<i>{frak('Only certified members can send media freely.')}</i>",
+                parse_mode=PM,
+                reply_markup=markup([danger(frak(f"⏳ Auto-deleting in {delete_time}s"))])
             )
         except Exception:
             warn_msg = None
@@ -49,9 +55,11 @@ def register(app: Client):
         if warn_msg:
             try:
                 await warn_msg.edit(
-                    f"🔴 **{frak('Media Deleted')}**\n\n"
-                    f"👤 {message.from_user.mention}'s {media_type} {frak('was removed.')}\n"
-                    f"_{frak('Reason: Non-certified member sent media.')}_",
+                    f"{em()} 🔴 <b>{frak('Media Deleted')}</b>\n\n"
+                    f"{em()} {message.from_user.mention}'s {media_type} {frak('was removed.')}\n"
+                    f"<i>{frak('Reason: Non-certified member sent media.')}</i>\n\n"
+                    f"— <b>{frak('Powered by Madara')}</b> 🔥",
+                    parse_mode=PM,
                     reply_markup=markup([danger(frak("Media Removed"))])
                 )
             except Exception:

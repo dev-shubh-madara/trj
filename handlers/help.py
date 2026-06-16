@@ -20,8 +20,8 @@ async def _get_random_sticker(client):
     global _sticker_cache
     if not _sticker_cache:
         try:
-            ss = await client.get_sticker_set(STICKER_SET)
-            _sticker_cache = [s.file_id for s in ss.stickers]
+            stickers = await client.get_stickers(STICKER_SET)
+            _sticker_cache = [s.file_id for s in stickers]
         except Exception:
             return None
     return random.choice(_sticker_cache) if _sticker_cache else None
@@ -36,13 +36,15 @@ def _main_menu_kb(me_username):
         [primary(frak("🔍 Filters"),           data="help_filters"),
          danger( frak("🌊 Anti-Flood"),        data="help_flood")],
         [danger( frak("🔨 Ban / Kick"),        data="help_ban"),
-         danger( frak("🔇 Mute"),              data="help_mute")],
+         danger( frak("🔇 Mute / RO"),        data="help_mute")],
         [danger( frak("⚠️ Warns"),             data="help_warns"),
          primary(frak("📌 Messages"),          data="help_messages")],
         [success(frak("👮 Promote / Demote"),  data="help_promote"),
          primary(frak("🔒 Group"),             data="help_group")],
-        [primary(frak("📊 Info / Ping"),       data="help_info"),
-         danger( frak("📢 Broadcast"),         data="help_broadcast")],
+        [primary(frak("📊 Info / ID"),         data="help_info"),
+         success(frak("🛠️ Tools"),             data="help_tools")],
+        [danger( frak("📢 Broadcast"),         data="help_broadcast"),
+         primary(frak("🔐 Auth"),              data="help_auth")],
         [success(frak("✦ Add to Group ✦"),
                  url=f"https://t.me/{me_username}?startgroup=true")],
     )
@@ -62,8 +64,6 @@ CATEGORY_CONTENT = {
                  success(frak("/removeaura"),   data="cmd_removeaura")],
                 [primary(frak("/certified"),    data="cmd_certified"),
                  primary(frak("/snapshotgroup"),data="cmd_snapshotgroup")],
-                [success(frak("/approve"),      data="cmd_approve"),
-                 danger( frak("/unapprove"),    data="cmd_unapprove")],
                 BACK_ROW,
             )
         )
@@ -161,13 +161,15 @@ CATEGORY_CONTENT = {
     "help_mute": (
         lambda: (
             f"{em_row(5)}\n"
-            f"🔇 <b>{frak('Mute Commands')}</b>\n\n"
+            f"🔇 <b>{frak('Mute & Restrict Commands')}</b>\n\n"
             f"{em()} <i>{frak('Reply to a user message to target them.')}</i>\n\n"
             f"━━━━━━━━━━━━━━━━━━━━",
             markup(
                 [danger( frak("/mute"),          data="cmd_mute"),
                  success(frak("/unmute"),        data="cmd_unmute")],
                 [danger( frak("/tmute <1h/2d>"), data="cmd_tmute")],
+                [danger( frak("/ro"),            data="cmd_ro"),
+                 success(frak("/unro"),          data="cmd_unro")],
                 BACK_ROW,
             )
         )
@@ -209,10 +211,10 @@ CATEGORY_CONTENT = {
             f"👮 <b>{frak('Admin Management')}</b>\n\n"
             f"━━━━━━━━━━━━━━━━━━━━",
             markup(
-                [success(frak("/promote"),     data="cmd_promote"),
-                 danger( frak("/demote"),      data="cmd_demote")],
-                [primary(frak("/title <text>"),data="cmd_title"),
-                 primary(frak("/admins"),      data="cmd_admins")],
+                [success(frak("/promote"),      data="cmd_promote"),
+                 danger( frak("/demote"),       data="cmd_demote")],
+                [primary(frak("/title <text>"), data="cmd_title"),
+                 primary(frak("/admins"),       data="cmd_admins")],
                 BACK_ROW,
             )
         )
@@ -223,11 +225,12 @@ CATEGORY_CONTENT = {
             f"🔒 <b>{frak('Group Protection')}</b>\n\n"
             f"━━━━━━━━━━━━━━━━━━━━",
             markup(
-                [danger( frak("/lock"),                  data="cmd_lock"),
-                 success(frak("/unlock"),                data="cmd_unlock")],
-                [primary(frak("/setgrouppic 10|20|30"),  data="cmd_setgrouppic")],
-                [primary(frak("/groupinfo"),             data="cmd_groupinfo"),
-                 success(frak("/snapshotgroup"),         data="cmd_snapshotgroup2")],
+                [danger( frak("/lock [all/media/sticker]"), data="cmd_lock"),
+                 success(frak("/unlock"),                   data="cmd_unlock")],
+                [primary(frak("/setgrouppic 10|20|30"),     data="cmd_setgrouppic")],
+                [primary(frak("/groupinfo"),                data="cmd_groupinfo"),
+                 success(frak("/snapshotgroup"),            data="cmd_snapshotgroup2")],
+                [primary(frak("/invite"),                   data="cmd_invite")],
                 BACK_ROW,
             )
         )
@@ -241,7 +244,24 @@ CATEGORY_CONTENT = {
                 [primary(frak("/info [@user]"), data="cmd_info"),
                  primary(frak("/id"),           data="cmd_id")],
                 [success(frak("/ping"),         data="cmd_ping"),
-                 primary(frak("/help"),         data="cmd_help2")],
+                 primary(frak("/admins"),       data="cmd_admins")],
+                BACK_ROW,
+            )
+        )
+    ),
+    "help_tools": (
+        lambda: (
+            f"{em_row(5)}\n"
+            f"🛠️ <b>{frak('Useful Group Tools')}</b>\n\n"
+            f"{em()} <i>{frak('Extra features for better group management.')}</i>\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━",
+            markup(
+                [danger( frak("/report [reason]"), data="cmd_report"),
+                 primary(frak("/invite"),          data="cmd_invite")],
+                [success(frak("/afk [reason]"),    data="cmd_afk"),
+                 danger( frak("/unafk"),           data="cmd_unafk")],
+                [primary(frak("/authlist"),        data="cmd_authlist"),
+                 primary(frak("/help"),            data="cmd_help2")],
                 BACK_ROW,
             )
         )
@@ -258,6 +278,20 @@ CATEGORY_CONTENT = {
             )
         )
     ),
+    "help_auth": (
+        lambda: (
+            f"{em_row(5)}\n"
+            f"🔐 <b>{frak('Authorization')}</b> 👑 {frak('Owner Only')}\n\n"
+            f"{em()} <i>{frak('Control who can use admin commands.')}</i>\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━",
+            markup(
+                [success(frak("/auth <id>"),    data="cmd_auth"),
+                 danger( frak("/unauth <id>"),  data="cmd_unauth")],
+                [primary(frak("/authlist"),     data="cmd_authlist")],
+                BACK_ROW,
+            )
+        )
+    ),
 }
 
 CMD_MAP = {
@@ -265,8 +299,6 @@ CMD_MAP = {
     "cmd_removeaura":     "/removeaura — Reply to user to revoke certification",
     "cmd_certified":      "/certified — List all certified members in this group",
     "cmd_snapshotgroup":  "/snapshotgroup — Save current group name & photo as protected values",
-    "cmd_approve":        "/approve — Reply to user to approve them (bypass filters)",
-    "cmd_unapprove":      "/unapprove — Reply to user to remove their approval",
     "cmd_setwelcome":     "/setwelcome <text> — Set custom welcome. Variables: {name} {first} {chat} {id}",
     "cmd_setwelcome_off": "/setwelcome off — Disable welcome messages for this group",
     "cmd_welcome":        "/welcome — Check current welcome settings",
@@ -294,6 +326,8 @@ CMD_MAP = {
     "cmd_mute":           "/mute — Reply to user to mute (no messages)",
     "cmd_unmute":         "/unmute — Reply to user to unmute",
     "cmd_tmute":          "/tmute 1h — Temp mute. Use: 1m, 1h, 1d",
+    "cmd_ro":             "/ro [reason] — Read-only mode: user can read but not send any messages",
+    "cmd_unro":           "/unro — Remove read-only restriction from user",
     "cmd_warn":           "/warn [reason] — Warn user. 3 warnings = auto-ban",
     "cmd_unwarn":         "/unwarn — Remove last warning from user",
     "cmd_warns":          "/warns — Check how many warnings a user has",
@@ -307,16 +341,23 @@ CMD_MAP = {
     "cmd_promote":        "/promote — Reply to user to make them admin",
     "cmd_demote":         "/demote — Reply to user to remove admin rights",
     "cmd_title":          "/title <text> — Set custom admin title for user",
-    "cmd_admins":         "/admins — List all admins in this group",
-    "cmd_lock":           "/lock — Lock group (only admins can send)",
-    "cmd_unlock":         "/unlock — Unlock group",
+    "cmd_admins":         "/admins — List all admins in this group with their titles",
+    "cmd_lock":           "/lock [all/media/sticker] — Lock group or specific content type",
+    "cmd_unlock":         "/unlock — Unlock group, restore all member permissions",
     "cmd_setgrouppic":    "/setgrouppic 10|20|30 — Set media auto-delete timer in seconds",
-    "cmd_groupinfo":      "/groupinfo — Show all protection settings for this group",
+    "cmd_groupinfo":      "/groupinfo — Show full protection dashboard for this group",
     "cmd_snapshotgroup2": "/snapshotgroup — Save current group name & photo as protected values",
-    "cmd_info":           "/info [@user] — Show user info (ID, name, status, warns)",
-    "cmd_id":             "/id — Get your ID, or reply to get another user ID",
+    "cmd_invite":         "/invite — Generate a fresh invite link for the group",
+    "cmd_info":           "/info [@user] — Detailed user info: ID, status, warns, certified",
+    "cmd_id":             "/id — Get your ID or reply to get another user's ID",
     "cmd_ping":           "/ping — Check bot response time (latency)",
     "cmd_help2":          "/help — Show this command menu",
+    "cmd_report":         "/report [reason] — Reply to user to report them to all admins (sends PM alert)",
+    "cmd_afk":            "/afk [reason] — Mark yourself AFK. Bot auto-replies when you're mentioned",
+    "cmd_unafk":          "/unafk — Remove AFK status and return to active",
+    "cmd_authlist":       "/authlist — List all authorized users (owner only, in PM)",
+    "cmd_auth":           "/auth <id> — Authorize a user to use admin commands (owner only)",
+    "cmd_unauth":         "/unauth <id> — Remove user authorization (owner only)",
     "cmd_broadcast":      "/broadcast — Owner only! In PM, reply to any message to send to all groups",
 }
 
@@ -393,7 +434,7 @@ def register(app: Client):
                  success(frak("✦ Add to Group ✦"),
                          url=f"https://t.me/{me.username}?startgroup=true")],
                 [primary(frak("ℹ️ About"),           data="show_info"),
-                 danger( frak("📢 Broadcast"),       data="help_broadcast")]
+                 danger( frak("🛠️ Tools"),           data="help_tools")]
             )
         )
 
@@ -446,8 +487,10 @@ def register(app: Client):
             f"{em()} {frak('Certified member system')}\n"
             f"{em()} {frak('Notes, Rules, Filters, Anti-Flood')}\n"
             f"{em()} {frak('Welcome with spoiler profile photo')}\n"
-            f"{em()} {frak('Full MissRose-style admin suite')}\n"
-            f"{em()} {frak('Warn system — 3 strikes = ban')}\n"
+            f"{em()} {frak('Full admin suite (ban/mute/ro/warn/kick)')}\n"
+            f"{em()} {frak('Report system — alerts ALL admins')}\n"
+            f"{em()} {frak('AFK auto-reply system')}\n"
+            f"{em()} {frak('User info, ID lookup, invite link')}\n"
             f"{em()} {frak('Owner broadcast system')}\n\n"
             f"━━━━━━━━━━━━━━━━━━━━\n\n"
             f"{em_row(5)}"
@@ -486,7 +529,7 @@ def register(app: Client):
                  success(frak("✦ Add to Group ✦"),
                          url=f"https://t.me/{me.username}?startgroup=true")],
                 [primary(frak("ℹ️ About"),           data="show_info"),
-                 danger( frak("📢 Broadcast"),       data="help_broadcast")]
+                 danger( frak("🛠️ Tools"),           data="help_tools")]
             )
         )
 

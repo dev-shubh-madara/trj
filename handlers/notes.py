@@ -1,9 +1,13 @@
 import re
 from pyrogram import Client, filters
 from pyrogram.types import Message
+from pyrogram.enums import ParseMode
 from database import get_conn
 from utils.font import frak
 from utils.buttons import markup, primary, success, danger
+from utils.emojis import em, em_row
+
+PM = ParseMode.HTML
 
 
 def _save_note(chat_id, name, content, creator_id):
@@ -49,13 +53,17 @@ def register(app: Client):
         parts = message.text.split(None, 2)
         if len(parts) < 3 and not message.reply_to_message:
             return await message.reply(
-                f"**{frak('Usage:')}** `/save notename content`\n"
-                f"_{frak('Or reply to a message with')} `/save notename`_",
+                f"{em()} <b>{frak('Usage:')}</b> <code>/save notename content</code>\n"
+                f"{em()} <i>{frak('Or reply to a message with')} /save notename</i>",
+                parse_mode=PM,
                 reply_markup=markup([primary(frak("✦ /save name text ✦"))])
             )
         name = parts[1].lower() if len(parts) >= 2 else None
         if not name:
-            return await message.reply(f"**{frak('Provide a note name.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Provide a note name.')}</b>",
+                parse_mode=PM
+            )
 
         if len(parts) >= 3:
             content = parts[2]
@@ -63,14 +71,19 @@ def register(app: Client):
             content = (message.reply_to_message.text or
                        message.reply_to_message.caption or "")
         else:
-            return await message.reply(f"**{frak('Provide note content.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Provide note content.')}</b>",
+                parse_mode=PM
+            )
 
         _save_note(message.chat.id, name, content, uid)
         await message.reply(
-            f"📝 **{frak('Note Saved!')}**\n\n"
-            f"🔖 **{frak('Name:')}** `#{name}`\n"
-            f"📋 **{frak('Content:')}** {content[:100]}{'...' if len(content)>100 else ''}\n\n"
-            f"_{frak('Use')} `#{name}` {frak('to retrieve it.')}_",
+            f"{em_row(4)}\n\n"
+            f"📝 <b>{frak('Note Saved!')}</b>\n\n"
+            f"{em()} <b>{frak('Name:')}</b> <code>#{name}</code>\n"
+            f"{em()} <b>{frak('Preview:')}</b> {content[:80]}{'...' if len(content) > 80 else ''}\n\n"
+            f"<i>{frak('Retrieve with')} <code>#{name}</code> {frak('anytime.')}</i>",
+            parse_mode=PM,
             reply_markup=markup([success(frak(f"✦ #{name} Saved ✦"))])
         )
 
@@ -79,18 +92,23 @@ def register(app: Client):
         parts = message.text.split()
         if len(parts) < 2:
             return await message.reply(
-                f"**{frak('Usage:')}** `/get notename`",
+                f"{em()} <b>{frak('Usage:')}</b> <code>/get notename</code>",
+                parse_mode=PM,
                 reply_markup=markup([primary(frak("✦ /get notename ✦"))])
             )
         name = parts[1].lower()
         content = _get_note(message.chat.id, name)
         if not content:
             return await message.reply(
-                f"**{frak('Note')}** `#{name}` **{frak('not found.')}**",
+                f"{em()} <b>{frak('Note')} <code>#{name}</code> {frak('not found.')}</b>",
+                parse_mode=PM,
                 reply_markup=markup([danger(frak("✦ Not Found ✦"))])
             )
         await message.reply(
-            f"📝 **#{name}**\n\n{content}",
+            f"{em_row(3)}\n\n"
+            f"📝 <b>#{name}</b>\n\n"
+            f"{content}",
+            parse_mode=PM,
             reply_markup=markup([primary(frak(f"✦ #{name} ✦"))])
         )
 
@@ -99,13 +117,18 @@ def register(app: Client):
         notes = _list_notes(message.chat.id)
         if not notes:
             return await message.reply(
-                f"**{frak('No notes saved in this group.')}**\n"
-                f"_{frak('Use /save name text to add notes.')}_",
+                f"{em()} <b>{frak('No notes saved in this group.')}</b>\n"
+                f"<i>{frak('Use /save name text to add notes.')}</i>",
+                parse_mode=PM,
                 reply_markup=markup([primary(frak("✦ /save name text ✦"))])
             )
-        lines = "\n".join(f"• `#{n}`" for n in notes)
+        lines = "\n".join(f"{em()} <code>#{n}</code>" for n in notes)
         await message.reply(
-            f"📋 **{frak('Saved Notes')}** ({len(notes)}):\n\n{lines}",
+            f"{em_row(4)}\n\n"
+            f"📋 <b>{frak('Saved Notes')}</b> ({len(notes)}):\n\n"
+            f"{lines}\n\n"
+            f"<i>{frak('Type #notename to retrieve.')}</i>",
+            parse_mode=PM,
             reply_markup=markup([success(frak(f"✦ {len(notes)} Notes ✦"))])
         )
 
@@ -118,11 +141,16 @@ def register(app: Client):
             return
         parts = message.text.split()
         if len(parts) < 2:
-            return await message.reply(f"**{frak('Usage:')}** `/clear notename`")
+            return await message.reply(
+                f"{em()} <b>{frak('Usage:')}</b> <code>/clear notename</code>",
+                parse_mode=PM
+            )
         name = parts[1].lower()
         _del_note(message.chat.id, name)
         await message.reply(
-            f"🗑️ **{frak('Note Deleted')}**\n`#{name}`",
+            f"{em()} 🗑️ <b>{frak('Note Deleted')}</b>\n"
+            f"{em()} <code>#{name}</code>",
+            parse_mode=PM,
             reply_markup=markup([danger(frak(f"✦ #{name} Deleted ✦"))])
         )
 
@@ -137,7 +165,8 @@ def register(app: Client):
         conn.execute("DELETE FROM notes WHERE chat_id=?", (message.chat.id,))
         conn.commit()
         await message.reply(
-            f"🗑️ **{frak('All Notes Cleared')}**",
+            f"{em()} 🗑️ <b>{frak('All Notes Cleared')}</b>",
+            parse_mode=PM,
             reply_markup=markup([danger(frak("✦ All Notes Deleted ✦"))])
         )
 
@@ -151,7 +180,10 @@ def register(app: Client):
             content = _get_note(message.chat.id, name.lower())
             if content:
                 await message.reply(
-                    f"📝 **#{name}**\n\n{content}",
+                    f"{em_row(3)}\n\n"
+                    f"📝 <b>#{name}</b>\n\n"
+                    f"{content}",
+                    parse_mode=PM,
                     reply_markup=markup([primary(frak(f"✦ #{name} ✦"))])
                 )
                 break

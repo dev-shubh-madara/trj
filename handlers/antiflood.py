@@ -2,9 +2,13 @@ import asyncio
 import time
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatPermissions
+from pyrogram.enums import ParseMode
 from database import get_conn
 from utils.font import frak
 from utils.buttons import markup, primary, success, danger
+from utils.emojis import em, em_row
+
+PM = ParseMode.HTML
 
 
 def _get_flood_limit(chat_id):
@@ -39,27 +43,36 @@ def register(app: Client):
         if len(parts) < 2:
             limit = _get_flood_limit(message.chat.id)
             return await message.reply(
-                f"🌊 **{frak('Anti-Flood Settings')}**\n\n"
-                f"📊 **{frak('Current Limit:')}** {limit if limit else frak('Disabled')}\n\n"
-                f"**{frak('Usage:')}** `/setflood 5` {frak('(mutes after 5 msgs in 5s)')}\n"
-                f"`/setflood 0` {frak('to disable')}",
+                f"{em_row(4)}\n\n"
+                f"🌊 <b>{frak('Anti-Flood Settings')}</b>\n\n"
+                f"{em()} <b>{frak('Status:')}</b> {'🟢 ' + str(limit) + ' msgs/5s' if limit else '🔴 Disabled'}\n\n"
+                f"{em()} <b>{frak('Usage:')}</b> <code>/setflood 5</code> {frak('(mutes after 5 msgs in 5s)')}\n"
+                f"{em()} <code>/setflood 0</code> {frak('to disable')}",
+                parse_mode=PM,
                 reply_markup=markup([primary(frak("✦ /setflood 5 ✦"))])
             )
         try:
             limit = int(parts[1])
         except ValueError:
-            return await message.reply(f"**{frak('Use a number.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Use a number.')}</b>",
+                parse_mode=PM
+            )
         _set_flood_limit(message.chat.id, limit)
         if limit == 0:
             await message.reply(
-                f"✅ **{frak('Anti-Flood Disabled')}**",
+                f"{em()} ✅ <b>{frak('Anti-Flood Disabled')}</b>",
+                parse_mode=PM,
                 reply_markup=markup([danger(frak("✦ Flood Off ✦"))])
             )
         else:
             await message.reply(
-                f"✅ **{frak('Anti-Flood Set!')}**\n\n"
-                f"🌊 **{frak('Limit:')}** {limit} {frak('messages per 5 seconds')}\n"
-                f"⚡ **{frak('Action:')}** {frak('Mute for 1 minute')}",
+                f"{em_row(4)}\n\n"
+                f"✅ <b>{frak('Anti-Flood Enabled!')}</b>\n\n"
+                f"{em()} 🌊 <b>{frak('Limit:')}</b> <code>{limit}</code> {frak('messages per 5 seconds')}\n"
+                f"{em()} ⚡ <b>{frak('Action:')}</b> {frak('Mute for 1 minute')}\n\n"
+                f"— <b>{frak('Powered by Madara')}</b> 🔥",
+                parse_mode=PM,
                 reply_markup=markup([success(frak(f"✦ Flood Limit: {limit} ✦"))])
             )
 
@@ -67,9 +80,11 @@ def register(app: Client):
     async def cmd_flood(client: Client, message: Message):
         limit = _get_flood_limit(message.chat.id)
         await message.reply(
-            f"🌊 **{frak('Anti-Flood')}**\n\n"
-            f"📊 **{frak('Status:')}** {f'{limit} msgs/5s' if limit else frak('Disabled')}\n\n"
-            f"_{frak('Use')} `/setflood N` {frak('to configure.')}_",
+            f"{em_row(4)}\n\n"
+            f"🌊 <b>{frak('Anti-Flood Status')}</b>\n\n"
+            f"{em()} <b>{frak('Status:')}</b> {f'🟢 {limit} msgs/5s' if limit else '🔴 Disabled'}\n\n"
+            f"<i>{frak('Use')} /setflood N {frak('to configure.')}</i>",
+            parse_mode=PM,
             reply_markup=markup(
                 [success(frak("✦ Active ✦")) if limit else danger(frak("✦ Disabled ✦")),
                  primary(frak("✦ /setflood ✦"))]
@@ -117,11 +132,13 @@ def register(app: Client):
                 )
                 await client.send_message(
                     chat_id,
-                    f"🌊 **{frak('Flood Detected!')}**\n\n"
-                    f"👤 **{frak('User:')}** {message.from_user.mention}\n"
-                    f"⚡ **{frak('Action:')}** {frak('Muted for 1 minute')}\n"
-                    f"📊 **{frak('Sent:')}** {entry['count']} {frak('msgs in 5s')}\n\n"
-                    f"— **{frak('Powered by Madara')}** 🔥",
+                    f"{em_row(4)}\n\n"
+                    f"🌊 <b>{frak('Flood Detected!')}</b>\n\n"
+                    f"{em()} <b>{frak('User:')}</b> {message.from_user.mention}\n"
+                    f"{em()} ⚡ <b>{frak('Action:')}</b> {frak('Muted for 1 minute')}\n"
+                    f"{em()} 📊 <b>{frak('Sent:')}</b> <code>{entry['count']}</code> {frak('msgs in 5s')}\n\n"
+                    f"— <b>{frak('Powered by Madara')}</b> 🔥",
+                    parse_mode=PM,
                     reply_markup=markup([danger(frak("✦ Flood Muted ✦"))])
                 )
             except Exception:

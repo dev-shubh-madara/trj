@@ -1,8 +1,12 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
+from pyrogram.enums import ParseMode
 from database import get_conn
 from utils.font import frak
 from utils.buttons import markup, primary, success, danger
+from utils.emojis import em, em_row
+
+PM = ParseMode.HTML
 
 
 def _add_filter(chat_id, keyword, response):
@@ -52,8 +56,9 @@ def register(app: Client):
         parts = message.text.split(None, 2)
         if len(parts) < 3 and not message.reply_to_message:
             return await message.reply(
-                f"**{frak('Usage:')}** `/filter keyword response`\n"
-                f"_{frak('Or reply to a message:')}_\n`/filter keyword`",
+                f"{em()} <b>{frak('Usage:')}</b> <code>/filter keyword response</code>\n"
+                f"{em()} <i>{frak('Or reply to a message:')}</i> <code>/filter keyword</code>",
+                parse_mode=PM,
                 reply_markup=markup([primary(frak("✦ /filter word reply ✦"))])
             )
         keyword = parts[1].lower()
@@ -62,13 +67,19 @@ def register(app: Client):
         elif message.reply_to_message:
             response = message.reply_to_message.text or message.reply_to_message.caption or ""
         else:
-            return await message.reply(f"**{frak('Provide a response.')}**")
+            return await message.reply(
+                f"{em()} <b>{frak('Provide a response.')}</b>",
+                parse_mode=PM
+            )
 
         _add_filter(message.chat.id, keyword, response)
         await message.reply(
-            f"✅ **{frak('Filter Added!')}**\n\n"
-            f"🔑 **{frak('Keyword:')}** `{keyword}`\n"
-            f"💬 **{frak('Response:')}** {response[:80]}",
+            f"{em_row(4)}\n\n"
+            f"✅ <b>{frak('Filter Added!')}</b>\n\n"
+            f"{em()} 🔑 <b>{frak('Keyword:')}</b> <code>{keyword}</code>\n"
+            f"{em()} 💬 <b>{frak('Response:')}</b> {response[:80]}{'...' if len(response) > 80 else ''}\n\n"
+            f"<i>{frak('Auto-reply will trigger when the keyword is detected.')}</i>",
+            parse_mode=PM,
             reply_markup=markup([success(frak(f"✦ Filter: {keyword[:20]} ✦"))])
         )
 
@@ -81,11 +92,16 @@ def register(app: Client):
             return
         parts = message.text.split()
         if len(parts) < 2:
-            return await message.reply(f"**{frak('Usage:')}** `/stop keyword`")
+            return await message.reply(
+                f"{em()} <b>{frak('Usage:')}</b> <code>/stop keyword</code>",
+                parse_mode=PM
+            )
         keyword = parts[1].lower()
         _remove_filter(message.chat.id, keyword)
         await message.reply(
-            f"🗑️ **{frak('Filter Removed')}**\n`{keyword}`",
+            f"{em()} 🗑️ <b>{frak('Filter Removed')}</b>\n"
+            f"{em()} <code>{keyword}</code>",
+            parse_mode=PM,
             reply_markup=markup([danger(frak(f"✦ {keyword} Removed ✦"))])
         )
 
@@ -94,12 +110,17 @@ def register(app: Client):
         rows = _list_filters(message.chat.id)
         if not rows:
             return await message.reply(
-                f"**{frak('No filters set.')}**",
+                f"{em()} <b>{frak('No filters set in this group.')}</b>\n"
+                f"<i>{frak('Use /filter keyword reply to add one.')}</i>",
+                parse_mode=PM,
                 reply_markup=markup([primary(frak("✦ /filter word reply ✦"))])
             )
-        lines = "\n".join(f"• `{r['keyword']}`" for r in rows)
+        lines = "\n".join(f"{em()} <code>{r['keyword']}</code>" for r in rows)
         await message.reply(
-            f"🔍 **{frak('Active Filters')}** ({len(rows)}):\n\n{lines}",
+            f"{em_row(4)}\n\n"
+            f"🔍 <b>{frak('Active Filters')}</b> ({len(rows)}):\n\n"
+            f"{lines}",
+            parse_mode=PM,
             reply_markup=markup([success(frak(f"✦ {len(rows)} Filters ✦"))])
         )
 
@@ -114,7 +135,8 @@ def register(app: Client):
         conn.execute("DELETE FROM chat_filters WHERE chat_id=?", (message.chat.id,))
         conn.commit()
         await message.reply(
-            f"🗑️ **{frak('All Filters Cleared')}**",
+            f"{em()} 🗑️ <b>{frak('All Filters Cleared')}</b>",
+            parse_mode=PM,
             reply_markup=markup([danger(frak("✦ All Filters Removed ✦"))])
         )
 
@@ -124,4 +146,4 @@ def register(app: Client):
             return
         response = _match_filter(message.chat.id, message.text)
         if response:
-            await message.reply(response)
+            await message.reply(response, parse_mode=PM)
